@@ -50,6 +50,9 @@ export const signUpWithEmail = async (email: string, password: string) => {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
+    },
   })
   if (error) throw error
   return data
@@ -80,6 +83,93 @@ export const signOut = async () => {
   if (error) throw error
 }
 
+// データ連携関数
+export const syncHealthData = async () => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error("User not authenticated")
+
+  // 体調記録の同期
+  const { data: healthRecords, error: healthError } = await supabase
+    .from("health_records")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("date", { ascending: false })
+
+  if (healthError) throw healthError
+
+  // ユーザー設定の同期
+  const { data: userSettings, error: settingsError } = await supabase
+    .from("user_settings")
+    .select("*")
+    .eq("user_id", user.id)
+    .single()
+
+  if (settingsError && settingsError.code !== "PGRST116") throw settingsError
+
+  return {
+    healthRecords: healthRecords || [],
+    userSettings: userSettings || null,
+  }
+}
+
+export const exportHealthData = async (format: "json" | "csv" = "json") => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error("User not authenticated")
+
+  const { data: healthRecords, error } = await supabase
+    .from("health_records")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("date", { ascending: false })
+
+  if (error) throw error
+
+  if (format === "csv") {
+    // CSV形式でエクスポート
+    const headers = ["日付", "体調", "メモ", "作成日時", "更新日時"]
+    const csvData = healthRecords.map((record) => [
+      record.date,
+      record.status === "good" ? "良い" : record.status === "normal" ? "普通" : "悪い",
+      record.notes || "",
+      record.created_at,
+      record.updated_at,
+    ])
+
+    const csvContent = [headers, ...csvData].map((row) => row.join(",")).join("\n")
+    return csvContent
+  }
+
+  // JSON形式でエクスポート
+  return JSON.stringify(healthRecords, null, 2)
+}
+
+export const importHealthData = async (data: HealthRecord[]) => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error("User not authenticated")
+
+  // データの検証とユーザーIDの設定
+  const validatedData = data.map((record) => ({
+    ...record,
+    user_id: user.id,
+    created_at: record.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }))
+
+  const { data: result, error } = await supabase
+    .from("health_records")
+    .upsert(validatedData, { onConflict: "user_id,date" })
+    .select()
+
+  if (error) throw error
+  return result
+}
+
 // サンプルデータ生成関数（Supabase版）
 export const generateSampleDataToSupabase = async () => {
   const {
@@ -104,10 +194,17 @@ export const generateSampleDataToSupabase = async () => {
     else if (random < 0.8) status = "normal"
     else status = "bad"
 
+    // ランダムなメモを追加（20%の確率）
+    const notes =
+      Math.random() < 0.2
+        ? ["よく眠れた", "運動した", "疲れ気味", "ストレス多め", "体調良好"][Math.floor(Math.random() * 5)]
+        : undefined
+
     sampleRecords.push({
       user_id: user.id,
       date: date.toISOString().split("T")[0],
       status,
+      notes,
     })
   }
 
@@ -147,4 +244,59 @@ export const initializeUserSettings = async () => {
   }
 
   return existingSettings
+}
+
+// リアルタイム同期の設定
+export const subscribeToHealthRecords = (userId: string, callback: (payload: any) => void) => {
+  return supabase
+    .channel("health_records_changes")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "health_records",
+        filter: `user_id=eq.${userId}`,
+      },
+      callback,
+    )
+    .subscribe()
+}
+
+// 統計データの取得
+export const getHealthStatistics = async (startDate?: string, endDate?: string) => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) throw new Error("User not authenticated")
+
+  let query = supabase.from("health_records").select("*").eq("user_id", user.id)
+
+  if (startDate) {
+    query = query.gte("date", startDate)
+  }
+  if (endDate) {
+    query = query.lte("date", endDate)
+  }
+
+  const { data, error } = await query.order("date", { ascending: false })
+
+  if (error) throw error
+
+  const records = data || []
+  const total = records.length
+  const good = records.filter((r) => r.status === "good").length
+  const normal = records.filter((r) => r.status === "normal").length
+  const bad = records.filter((r) => r.status === "bad").length
+
+  return {
+    total,
+    good,
+    normal,
+    bad,
+    goodPercentage: total > 0 ? Math.round((good / total) * 100) : 0,
+    normalPercentage: total > 0 ? Math.round((normal / total) * 100) : 0,
+    badPercentage: total > 0 ? Math.round((bad / total) * 100) : 0,
+    records,
+  }
 }

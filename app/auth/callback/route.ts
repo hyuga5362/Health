@@ -1,16 +1,18 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
+import { supabase } from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get("code")
+  const { searchParams, origin } = new URL(request.url)
+  const code = searchParams.get("code")
+  const next = searchParams.get("next") ?? "/"
 
   if (code) {
-    const supabase = createRouteHandlerClient({ cookies })
-    await supabase.auth.exchangeCodeForSession(code)
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) {
+      return NextResponse.redirect(`${origin}${next}`)
+    }
   }
 
-  // ホームページにリダイレクト
-  return NextResponse.redirect(new URL("/", request.url))
+  // エラーの場合はログインページにリダイレクト
+  return NextResponse.redirect(`${origin}/login`)
 }

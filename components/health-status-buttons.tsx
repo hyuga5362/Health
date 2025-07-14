@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import type { HealthStatus } from "@/lib/local-storage"
+import type { HealthStatus } from "@/lib/supabase"
 
 interface HealthStatusButtonsProps {
   selectedStatus?: HealthStatus
@@ -10,40 +10,44 @@ interface HealthStatusButtonsProps {
 }
 
 export function HealthStatusButtons({ selectedStatus, onStatusSelect, disabled }: HealthStatusButtonsProps) {
-  const statusConfig = {
-    good: {
+  const statuses = [
+    {
+      value: "good" as const,
       label: "良い",
       emoji: "😊",
-      className: "bg-white text-gray-800 border-2 border-gray-200 hover:bg-gray-50",
+      color: "bg-green-500 hover:bg-green-600 text-white",
+      selectedColor: "bg-green-600 text-white",
     },
-    normal: {
+    {
+      value: "normal" as const,
       label: "普通",
       emoji: "😐",
-      className: "bg-gray-400 text-white hover:bg-gray-500",
+      color: "bg-yellow-500 hover:bg-yellow-600 text-white",
+      selectedColor: "bg-yellow-600 text-white",
     },
-    bad: {
+    {
+      value: "bad" as const,
       label: "悪い",
       emoji: "😷",
-      className: "bg-gray-800 text-white hover:bg-gray-900",
+      color: "bg-red-500 hover:bg-red-600 text-white",
+      selectedColor: "bg-red-600 text-white",
     },
-  }
+  ]
 
   return (
-    <div className="flex gap-3 justify-center">
-      {Object.entries(statusConfig).map(([status, config]) => (
+    <div className="grid grid-cols-3 gap-3">
+      {statuses.map((status) => (
         <Button
-          key={status}
-          onClick={() => onStatusSelect(status as HealthStatus)}
+          key={status.value}
+          onClick={() => onStatusSelect(status.value)}
           disabled={disabled}
-          className={`
-            flex-1 h-16 flex flex-col items-center justify-center gap-1 rounded-xl transition-all
-            ${config.className}
-            ${selectedStatus === status ? "ring-2 ring-orange-400 ring-offset-2" : ""}
-          `}
-          variant="outline"
+          className={`h-20 flex flex-col gap-1 ${
+            selectedStatus === status.value ? status.selectedColor : status.color
+          }`}
+          variant={selectedStatus === status.value ? "default" : "outline"}
         >
-          <span className="text-xl">{config.emoji}</span>
-          <span className="text-sm font-medium">{config.label}</span>
+          <span className="text-2xl">{status.emoji}</span>
+          <span className="text-sm font-medium">{status.label}</span>
         </Button>
       ))}
     </div>

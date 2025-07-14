@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase"
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
     // 初期認証状態を取得
@@ -14,7 +15,11 @@ export function useAuth() {
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
+
+      if (session?.user) {
+        setUser(session.user)
+        setIsAuthenticated(true)
+      }
       setLoading(false)
     }
 
@@ -24,7 +29,13 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null)
+      if (session?.user) {
+        setUser(session.user)
+        setIsAuthenticated(true)
+      } else {
+        setUser(null)
+        setIsAuthenticated(false)
+      }
       setLoading(false)
     })
 
@@ -34,6 +45,6 @@ export function useAuth() {
   return {
     user,
     loading,
-    isAuthenticated: !!user,
+    isAuthenticated,
   }
 }
