@@ -1,18 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabase, type HealthRecord, type HealthStatus } from "@/lib/supabase"
+import { localStorageAPI, type HealthRecord, type HealthStatus } from "@/lib/local-storage"
 
 export function useHealthRecords() {
   const [records, setRecords] = useState<HealthRecord[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchRecords = async () => {
+  const fetchRecords = () => {
     try {
-      const { data, error } = await supabase.from("health_records").select("*").order("date", { ascending: false })
-
-      if (error) throw error
-      setRecords(data || [])
+      const data = localStorageAPI.getHealthRecords()
+      // 日付順でソート（新しい順）
+      const sorted = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      setRecords(sorted)
     } catch (error) {
       console.error("Error fetching health records:", error)
     } finally {
@@ -22,27 +22,13 @@ export function useHealthRecords() {
 
   const addRecord = async (date: string, status: HealthStatus, notes?: string) => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
-
-      const { data, error } = await supabase
-        .from("health_records")
-        .upsert(
-          {
-            user_id: user.id,
-            date,
-            status,
-            notes,
-          },
-          { onConflict: "user_id,date" },
-        )
-        .select()
-
-      if (error) throw error
-      await fetchRecords()
-      return data
+      const newRecord = localStorageAPI.saveHealthRecord({
+        date,
+        status,
+        notes,
+      })
+      fetchRecords() // データを再取得
+      return newRecord
     } catch (error) {
       console.error("Error adding health record:", error)
       throw error

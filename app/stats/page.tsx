@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from "date-fns"
 import { ja } from "date-fns/locale"
 import { ArrowLeft, Calendar, TrendingUp } from "lucide-react"
@@ -8,29 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CircularHealthChart } from "@/components/circular-health-chart"
 import { useHealthRecords } from "@/hooks/use-health-records"
-import { createAnonymousUser } from "@/lib/supabase"
 import Link from "next/link"
 
 export default function StatsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<"week" | "month" | "all">("month")
-  const [isInitializing, setIsInitializing] = useState(true)
-  const { records, loading, refetch } = useHealthRecords()
-
-  useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        // 匿名ユーザーを作成（プロトタイプ用）
-        await createAnonymousUser()
-        await refetch()
-      } catch (error) {
-        console.error("Error initializing user:", error)
-      } finally {
-        setIsInitializing(false)
-      }
-    }
-
-    initializeUser()
-  }, [refetch])
+  const { records, loading } = useHealthRecords()
 
   const now = new Date()
   const weekStart = startOfWeek(now, { weekStartsOn: 0 })
@@ -89,7 +71,7 @@ export default function StatsPage() {
 
   const { stats, title } = getCurrentStats()
 
-  if (isInitializing || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center">
         <div className="text-center">

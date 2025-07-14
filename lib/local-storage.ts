@@ -26,6 +26,9 @@ export interface UserSettings {
   week_starts_monday: boolean
   google_calendar_connected: boolean
   apple_calendar_connected: boolean
+  theme: "light" | "dark" | "system"
+  notifications_enabled: boolean
+  reminder_time: string
   created_at: string
   updated_at: string
 }
@@ -111,6 +114,9 @@ export const localStorageAPI = {
         week_starts_monday: false,
         google_calendar_connected: false,
         apple_calendar_connected: false,
+        theme: "light",
+        notifications_enabled: true,
+        reminder_time: "09:00",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -125,6 +131,9 @@ export const localStorageAPI = {
           week_starts_monday: false,
           google_calendar_connected: false,
           apple_calendar_connected: false,
+          theme: "light",
+          notifications_enabled: true,
+          reminder_time: "09:00",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }

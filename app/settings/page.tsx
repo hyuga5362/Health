@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { ArrowLeft, User, Palette, Bell, Calendar, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,46 +8,25 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useUserSettings } from "@/hooks/use-user-settings"
-import { createAnonymousUser } from "@/lib/supabase"
-import NextLink from "next/link"
+import Link from "next/link"
 
 export default function SettingsPage() {
-  const [isInitializing, setIsInitializing] = useState(true)
   const {
     settings,
     loading,
     updateFontSize,
     toggleWeekStartsMonday,
-    updateTheme,
     toggleNotifications,
-    updateReminderTime,
     connectGoogleCalendar,
     disconnectGoogleCalendar,
     connectAppleCalendar,
     disconnectAppleCalendar,
-    refetch,
   } = useUserSettings()
   const { toast } = useToast()
 
-  useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        // 匿名ユーザーを作成（プロトタイプ用）
-        await createAnonymousUser()
-        await refetch()
-      } catch (error) {
-        console.error("Error initializing user:", error)
-      } finally {
-        setIsInitializing(false)
-      }
-    }
-
-    initializeUser()
-  }, [refetch])
-
-  const handleFontSizeChange = async (value: number[]) => {
+  const handleFontSizeChange = (value: number[]) => {
     try {
-      await updateFontSize(value[0])
+      updateFontSize(value[0])
       toast({
         title: "設定を更新しました",
         description: `フォントサイズを${value[0]}pxに変更しました。`,
@@ -62,9 +40,9 @@ export default function SettingsPage() {
     }
   }
 
-  const handleWeekStartToggle = async () => {
+  const handleWeekStartToggle = () => {
     try {
-      await toggleWeekStartsMonday()
+      toggleWeekStartsMonday()
       toast({
         title: "設定を更新しました",
         description: `週の開始を${settings?.week_starts_monday ? "日曜日" : "月曜日"}に変更しました。`,
@@ -78,9 +56,9 @@ export default function SettingsPage() {
     }
   }
 
-  const handleNotificationToggle = async () => {
+  const handleNotificationToggle = () => {
     try {
-      await toggleNotifications()
+      toggleNotifications()
       toast({
         title: "設定を更新しました",
         description: `通知を${settings?.notifications_enabled ? "無効" : "有効"}にしました。`,
@@ -94,16 +72,16 @@ export default function SettingsPage() {
     }
   }
 
-  const handleGoogleCalendarToggle = async () => {
+  const handleGoogleCalendarToggle = () => {
     try {
       if (settings?.google_calendar_connected) {
-        await disconnectGoogleCalendar()
+        disconnectGoogleCalendar()
         toast({
           title: "Google Calendar連携を解除しました",
           description: "Google Calendarとの連携を解除しました。",
         })
       } else {
-        await connectGoogleCalendar()
+        connectGoogleCalendar()
         toast({
           title: "Google Calendar連携を有効にしました",
           description: "Google Calendarとの連携を開始しました。",
@@ -118,16 +96,16 @@ export default function SettingsPage() {
     }
   }
 
-  const handleAppleCalendarToggle = async () => {
+  const handleAppleCalendarToggle = () => {
     try {
       if (settings?.apple_calendar_connected) {
-        await disconnectAppleCalendar()
+        disconnectAppleCalendar()
         toast({
           title: "Apple Calendar連携を解除しました",
           description: "Apple Calendarとの連携を解除しました。",
         })
       } else {
-        await connectAppleCalendar()
+        connectAppleCalendar()
         toast({
           title: "Apple Calendar連携を有効にしました",
           description: "Apple Calendarとの連携を開始しました。",
@@ -142,7 +120,7 @@ export default function SettingsPage() {
     }
   }
 
-  if (isInitializing || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center">
         <div className="text-center">
@@ -169,11 +147,11 @@ export default function SettingsPage() {
       <header className="bg-white shadow-sm border-b border-orange-100">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <NextLink href="/">
+            <Link href="/">
               <Button variant="ghost" size="icon" className="text-gray-600">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-            </NextLink>
+            </Link>
             <div className="flex items-center gap-2">
               <User className="h-6 w-6 text-orange-600" />
               <h1 className="text-lg font-semibold text-gray-800">設定</h1>
@@ -306,7 +284,7 @@ export default function SettingsPage() {
         <Card className="bg-white">
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-medium text-gray-800 flex items-center gap-2">
-              <NextLink href="/" className="h-4 w-4" />
+              <User className="h-4 w-4" />
               アプリ情報
             </CardTitle>
           </CardHeader>
@@ -318,11 +296,11 @@ export default function SettingsPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">データベース</span>
-                <span className="font-medium">Supabase</span>
+                <span className="font-medium">ローカルストレージ</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">認証</span>
-                <span className="font-medium">匿名ユーザー</span>
+                <span className="font-medium">なし</span>
               </div>
             </div>
           </CardContent>
@@ -332,7 +310,7 @@ export default function SettingsPage() {
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="pt-4">
             <p className="text-xs text-blue-700 text-center">
-              🚧 プロトタイプ版：設定はSupabaseデータベースに保存されます
+              🚧 プロトタイプ版：設定はブラウザのローカルストレージに保存されます
             </p>
           </CardContent>
         </Card>

@@ -2,19 +2,17 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { generateSampleData } from "@/lib/local-storage"
 import { RefreshCw } from "lucide-react"
 
 interface SampleDataGeneratorProps {
-  onDataGenerated: () => Promise<void>
+  onDataGenerated: () => void
 }
 
 export function SampleDataGenerator({ onDataGenerated }: SampleDataGeneratorProps) {
-  const handleGenerateSampleData = async () => {
-    try {
-      await onDataGenerated()
-    } catch (error) {
-      console.error("Error generating sample data:", error)
-    }
+  const handleGenerateSampleData = () => {
+    generateSampleData()
+    onDataGenerated()
   }
 
   return (
@@ -27,7 +25,7 @@ export function SampleDataGenerator({ onDataGenerated }: SampleDataGeneratorProp
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-blue-700">
-          Supabaseデータベースを使用しています。 サンプルデータを生成して機能をお試しください。
+          このプロトタイプではローカルストレージを使用しています。 サンプルデータを生成して機能をお試しください。
         </p>
         <Button
           onClick={handleGenerateSampleData}

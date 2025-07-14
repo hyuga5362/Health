@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
 import { Calendar, Settings, BarChart3 } from "lucide-react"
@@ -12,32 +12,14 @@ import { HealthCalendar } from "@/components/health-calendar"
 import { HealthStats } from "@/components/health-stats"
 import { SampleDataGenerator } from "@/components/sample-data-generator"
 import { useHealthRecords } from "@/hooks/use-health-records"
-import type { HealthStatus } from "@/lib/supabase"
-import { createAnonymousUser, generateSampleDataToSupabase } from "@/lib/supabase"
+import type { HealthStatus } from "@/lib/local-storage"
 import Link from "next/link"
 
 export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isRecording, setIsRecording] = useState(false)
-  const [isInitializing, setIsInitializing] = useState(true)
   const { records, loading, addRecord, getRecordByDate, refetch } = useHealthRecords()
   const { toast } = useToast()
-
-  useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        // 匿名ユーザーを作成（プロトタイプ用）
-        await createAnonymousUser()
-        await refetch()
-      } catch (error) {
-        console.error("Error initializing user:", error)
-      } finally {
-        setIsInitializing(false)
-      }
-    }
-
-    initializeUser()
-  }, [refetch])
 
   const handleStatusSelect = async (status: HealthStatus) => {
     if (!selectedDate) return
@@ -64,26 +46,9 @@ export default function HomePage() {
     }
   }
 
-  const handleGenerateSampleData = async () => {
-    try {
-      await generateSampleDataToSupabase()
-      refetch()
-      toast({
-        title: "サンプルデータを生成しました",
-        description: "過去30日分の体調データを作成しました。",
-      })
-    } catch (error) {
-      toast({
-        title: "エラーが発生しました",
-        description: "サンプルデータの生成に失敗しました。",
-        variant: "destructive",
-      })
-    }
-  }
-
   const selectedDateRecord = selectedDate ? getRecordByDate(format(selectedDate, "yyyy-MM-dd")) : null
 
-  if (isInitializing || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center">
         <div className="text-center">
@@ -120,7 +85,7 @@ export default function HomePage() {
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-6">
         {/* Sample Data Generator (プロトタイプ用) */}
-        {records.length === 0 && <SampleDataGenerator onDataGenerated={handleGenerateSampleData} />}
+        {records.length === 0 && <SampleDataGenerator onDataGenerated={refetch} />}
 
         {/* Stats Overview */}
         <HealthStats healthRecords={records} />
@@ -195,17 +160,4 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
-        )}
-
-        {/* プロトタイプ情報 */}
-        <Card className="bg-gray-50 border-gray-200">
-          <CardContent className="pt-4">
-            <p className="text-xs text-gray-600 text-center">
-              🚧 プロトタイプ版：データはSupabaseデータベースに保存されます
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
-}
+        \

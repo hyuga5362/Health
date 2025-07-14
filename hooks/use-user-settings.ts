@@ -1,32 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabase, type UserSettings, initializeUserSettings } from "@/lib/supabase"
+import { localStorageAPI, type UserSettings } from "@/lib/local-storage"
 
 export function useUserSettings() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchSettings = async () => {
+  const fetchSettings = () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
-
-      const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user.id).single()
-
-      if (error) {
-        if (error.code === "PGRST116") {
-          // 設定が存在しない場合は初期化
-          const newSettings = await initializeUserSettings()
-          setSettings(newSettings)
-        } else {
-          throw error
-        }
-      } else {
-        setSettings(data)
-      }
+      const data = localStorageAPI.getUserSettings()
+      setSettings(data)
     } catch (error) {
       console.error("Error fetching user settings:", error)
     } finally {
@@ -34,69 +18,54 @@ export function useUserSettings() {
     }
   }
 
-  const updateSettings = async (updates: Partial<UserSettings>) => {
+  const updateSettings = (updates: Partial<UserSettings>) => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
-
-      const { data, error } = await supabase
-        .from("user_settings")
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id)
-        .select()
-        .single()
-
-      if (error) throw error
-      setSettings(data)
-      return data
+      const updatedSettings = localStorageAPI.saveUserSettings(updates)
+      setSettings(updatedSettings)
+      return updatedSettings
     } catch (error) {
       console.error("Error updating user settings:", error)
       throw error
     }
   }
 
-  const updateFontSize = async (fontSize: number) => {
+  const updateFontSize = (fontSize: number) => {
     return updateSettings({ font_size: fontSize })
   }
 
-  const toggleWeekStartsMonday = async () => {
+  const toggleWeekStartsMonday = () => {
     if (!settings) return
     return updateSettings({ week_starts_monday: !settings.week_starts_monday })
   }
 
-  const updateTheme = async (theme: "light" | "dark" | "system") => {
+  const updateTheme = (theme: "light" | "dark" | "system") => {
     return updateSettings({ theme })
   }
 
-  const toggleNotifications = async () => {
+  const toggleNotifications = () => {
     if (!settings) return
     return updateSettings({ notifications_enabled: !settings.notifications_enabled })
   }
 
-  const updateReminderTime = async (time: string) => {
+  const updateReminderTime = (time: string) => {
     return updateSettings({ reminder_time: time })
   }
 
-  const connectGoogleCalendar = async () => {
+  const connectGoogleCalendar = () => {
     // Google Calendar連携のロジックをここに実装
     return updateSettings({ google_calendar_connected: true })
   }
 
-  const disconnectGoogleCalendar = async () => {
+  const disconnectGoogleCalendar = () => {
     return updateSettings({ google_calendar_connected: false })
   }
 
-  const connectAppleCalendar = async () => {
+  const connectAppleCalendar = () => {
     // Apple Calendar連携のロジックをここに実装
     return updateSettings({ apple_calendar_connected: true })
   }
 
-  const disconnectAppleCalendar = async () => {
+  const disconnectAppleCalendar = () => {
     return updateSettings({ apple_calendar_connected: false })
   }
 
