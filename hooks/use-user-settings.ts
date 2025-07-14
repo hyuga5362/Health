@@ -2,18 +2,21 @@
 
 import { useState, useEffect } from "react"
 import { supabase, type UserSettings, initializeUserSettings } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 
 export function useUserSettings() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [loading, setLoading] = useState(true)
+  const { user, isAuthenticated } = useAuth()
 
   const fetchSettings = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
+    if (!isAuthenticated || !user) {
+      setSettings(null)
+      setLoading(false)
+      return
+    }
 
+    try {
       const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user.id).single()
 
       if (error) {
@@ -35,12 +38,11 @@ export function useUserSettings() {
   }
 
   const updateSettings = async (updates: Partial<UserSettings>) => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("User not authenticated")
+    if (!isAuthenticated || !user) {
+      throw new Error("User not authenticated")
+    }
 
+    try {
       const { data, error } = await supabase
         .from("user_settings")
         .update({
@@ -102,7 +104,7 @@ export function useUserSettings() {
 
   useEffect(() => {
     fetchSettings()
-  }, [])
+  }, [isAuthenticated, user])
 
   return {
     settings,

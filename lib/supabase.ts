@@ -45,6 +45,41 @@ export interface UserSettings {
   updated_at: string
 }
 
+// 認証関数
+export const signUpWithEmail = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  })
+  if (error) throw error
+  return data
+}
+
+export const signInWithEmail = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+  if (error) throw error
+  return data
+}
+
+export const signInWithGoogle = async () => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    },
+  })
+  if (error) throw error
+  return data
+}
+
+export const signOut = async () => {
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}
+
 // サンプルデータ生成関数（Supabase版）
 export const generateSampleDataToSupabase = async () => {
   const {
@@ -78,13 +113,6 @@ export const generateSampleDataToSupabase = async () => {
 
   const { data, error } = await supabase.from("health_records").upsert(sampleRecords, { onConflict: "user_id,date" })
 
-  if (error) throw error
-  return data
-}
-
-// 匿名ユーザー作成関数
-export const createAnonymousUser = async () => {
-  const { data, error } = await supabase.auth.signInAnonymously()
   if (error) throw error
   return data
 }

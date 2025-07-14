@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { ja } from "date-fns/locale"
-import { Calendar, Settings, BarChart3 } from "lucide-react"
+import { Calendar, Settings, BarChart3, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
@@ -12,32 +13,24 @@ import { HealthCalendar } from "@/components/health-calendar"
 import { HealthStats } from "@/components/health-stats"
 import { SampleDataGenerator } from "@/components/sample-data-generator"
 import { useHealthRecords } from "@/hooks/use-health-records"
+import { useAuth } from "@/hooks/use-auth"
 import type { HealthStatus } from "@/lib/supabase"
-import { createAnonymousUser, generateSampleDataToSupabase } from "@/lib/supabase"
+import { generateSampleDataToSupabase, signOut } from "@/lib/supabase"
 import Link from "next/link"
 
 export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isRecording, setIsRecording] = useState(false)
-  const [isInitializing, setIsInitializing] = useState(true)
   const { records, loading, addRecord, getRecordByDate, refetch } = useHealthRecords()
+  const { user, loading: authLoading, isAuthenticated } = useAuth()
+  const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        // 匿名ユーザーを作成（プロトタイプ用）
-        await createAnonymousUser()
-        await refetch()
-      } catch (error) {
-        console.error("Error initializing user:", error)
-      } finally {
-        setIsInitializing(false)
-      }
+    if (!authLoading && !isAuthenticated) {
+      router.push("/login")
     }
-
-    initializeUser()
-  }, [refetch])
+  }, [authLoading, isAuthenticated, router])
 
   const handleStatusSelect = async (status: HealthStatus) => {
     if (!selectedDate) return
@@ -81,9 +74,26 @@ export default function HomePage() {
     }
   }
 
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      toast({
+        title: "ログアウトしました",
+        description: "またのご利用をお待ちしております。",
+      })
+      router.push("/login")
+    } catch (error) {
+      toast({
+        title: "エラーが発生しました",
+        description: "ログアウトに失敗しました。",
+        variant: "destructive",
+      })
+    }
+  }
+
   const selectedDateRecord = selectedDate ? getRecordByDate(format(selectedDate, "yyyy-MM-dd")) : null
 
-  if (isInitializing || loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center">
         <div className="text-center">
@@ -92,6 +102,10 @@ export default function HomePage() {
         </div>
       </div>
     )
+  }
+
+  if (!isAuthenticated) {
+    return null // リダイレクト中
   }
 
   return (
@@ -114,12 +128,24 @@ export default function HomePage() {
                 <Settings className="h-5 w-5" />
               </Button>
             </Link>
+            <Button variant="ghost" size="icon" className="text-gray-600" onClick={handleSignOut}>
+              <LogOut className="h-5 w-5" />
+            </Button>
           </div>
         </div>
       </header>
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-6">
-        {/* Sample Data Generator (プロトタイプ用) */}
+        {/* User Info */}
+        {user && (
+          <Card className="bg-white shadow-sm">
+            <CardContent className="pt-4">
+              <p className="text-sm text-gray-600 text-center">ようこそ、{user.email}さん</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Sample Data Generator */}
         {records.length === 0 && <SampleDataGenerator onDataGenerated={handleGenerateSampleData} />}
 
         {/* Stats Overview */}
@@ -196,15 +222,6 @@ export default function HomePage() {
             </CardContent>
           </Card>
         )}
-
-        {/* プロトタイプ情報 */}
-        <Card className="bg-gray-50 border-gray-200">
-          <CardContent className="pt-4">
-            <p className="text-xs text-gray-600 text-center">
-              🚧 プロトタイプ版：データはSupabaseデータベースに保存されます
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
