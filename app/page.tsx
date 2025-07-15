@@ -12,19 +12,16 @@ import { HealthStatusButtons } from "@/components/health-status-buttons"
 import { HealthCalendar } from "@/components/health-calendar"
 import { HealthStats } from "@/components/health-stats"
 import { SampleDataGenerator } from "@/components/sample-data-generator"
-import { useAuth } from "@/hooks/use-auth"
 import { useHealthRecords } from "@/hooks/use-health-records"
-import { useUserSettings } from "@/hooks/use-user-settings"
+import { useAuth } from "@/hooks/use-auth"
 import type { HealthStatus } from "@/types/database"
 import Link from "next/link"
 
 export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isRecording, setIsRecording] = useState(false)
-
+  const { records, loading, addRecord, getRecordByDate, generateSampleData } = useHealthRecords()
   const { user, loading: authLoading, isAuthenticated, signOut } = useAuth()
-  const { records, loading: recordsLoading, addRecord, getRecordByDate, generateSampleData } = useHealthRecords()
-  const { settings } = useUserSettings()
   const router = useRouter()
   const { toast } = useToast()
 
@@ -51,7 +48,7 @@ export default function HomePage() {
     } catch (error: any) {
       toast({
         title: "エラーが発生しました",
-        description: error.message || "体調の記録に失敗しました。",
+        description: error.message || "体調の記録に失敗しました。もう一度お試しください。",
         variant: "destructive",
       })
     } finally {
@@ -94,7 +91,7 @@ export default function HomePage() {
 
   const selectedDateRecord = selectedDate ? getRecordByDate(format(selectedDate, "yyyy-MM-dd")) : null
 
-  if (authLoading || recordsLoading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center">
         <div className="text-center">
@@ -110,10 +107,7 @@ export default function HomePage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-amber-50"
-      style={{ fontSize: settings?.font_size ? `${settings.font_size}px` : "16px" }}
-    >
+    <div className="min-h-screen bg-amber-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-orange-100">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
@@ -144,16 +138,7 @@ export default function HomePage() {
         {user && (
           <Card className="bg-white shadow-sm">
             <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">ようこそ</p>
-                  <p className="font-medium text-gray-800">{user.email}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-500">記録数</p>
-                  <p className="text-lg font-bold text-orange-600">{records.length}</p>
-                </div>
-              </div>
+              <p className="text-sm text-gray-600 text-center">ようこそ、{user.email}さん</p>
             </CardContent>
           </Card>
         )}
@@ -188,7 +173,6 @@ export default function HomePage() {
                   : selectedDateRecord.status === "normal"
                     ? "普通"
                     : "悪い"}
-                {selectedDateRecord.notes && ` - ${selectedDateRecord.notes}`}
               </p>
             )}
           </CardHeader>
@@ -226,12 +210,9 @@ export default function HomePage() {
                       <span className="text-lg">
                         {record.status === "good" ? "😊" : record.status === "normal" ? "😐" : "😷"}
                       </span>
-                      <div className="text-right">
-                        <span className="text-sm font-medium">
-                          {record.status === "good" ? "良い" : record.status === "normal" ? "普通" : "悪い"}
-                        </span>
-                        {record.notes && <p className="text-xs text-gray-500">{record.notes}</p>}
-                      </div>
+                      <span className="text-sm font-medium">
+                        {record.status === "good" ? "良い" : record.status === "normal" ? "普通" : "悪い"}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -239,29 +220,6 @@ export default function HomePage() {
             </CardContent>
           </Card>
         )}
-
-        {/* Quick Actions */}
-        <Card className="bg-white shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-medium text-gray-800">クイックアクション</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3">
-              <Link href="/stats">
-                <Button variant="outline" className="w-full h-12 flex flex-col gap-1 bg-transparent">
-                  <BarChart3 className="h-4 w-4" />
-                  <span className="text-xs">統計を見る</span>
-                </Button>
-              </Link>
-              <Link href="/settings">
-                <Button variant="outline" className="w-full h-12 flex flex-col gap-1 bg-transparent">
-                  <Settings className="h-4 w-4" />
-                  <span className="text-xs">設定</span>
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )

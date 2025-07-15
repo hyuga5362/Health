@@ -1,134 +1,186 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { HealthRecordsService, type HealthRecordFilters } from "@/services/health-records.service"
-import type { HealthRecord, HealthStatus } from "@/types/database"
+import { useState, useEffect } from "react"
+import { HealthRecordsService } from "@/services/health-records.service"
+import { getErrorMessage, logError } from "@/lib/errors"
 import { useAuth } from "./use-auth"
+import type { HealthRecord, HealthStatus } from "@/types/database"
 
-export function useHealthRecords(filters: HealthRecordFilters = {}) {
-  const [records, setRecords] = useState<HealthRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const { user, isAuthenticated } = useAuth()
+interface HealthRecordsState {
+  records: HealthRecord[]
+  stats: {
+    total: number
+    good: number
+    normal: number
+    bad: number
+    goodPercentage: number
+    normalPercentage: number
+    badPercentage: number
+  } | null
+  loading: boolean
+  error: string | null
+}
 
-  const fetchRecords = useCallback(async () => {
-    if (!isAuthenticated || !user) {
-      setRecords([])
-      setLoading(false)
-      return
-    }
+export function useHealthRecords() {
+  const { isAuthenticated, user } = useAuth()
+  const [state, setState] = useState<HealthRecordsState>({
+    records: [],
+    stats: null,
+    loading: false,
+    error: null,
+  })
+
+  // データを取得
+  const fetchRecords = async () => {
+    if (!isAuthenticated) return
+
+    setState((prev) => ({ ...prev, loading: true, error: null }))
 
     try {
-      setLoading(true)
-      setError(null)
-      const data = await HealthRecordsService.getAll(filters)
-      setRecords(data)
-    } catch (err: any) {
-      setError(err.message || "データの取得に失敗しました。")
-      setRecords([])
-    } finally {
-      setLoading(false)
+      const [records, stats] = await Promise.all([HealthRecordsService.getAll(), HealthRecordsService.getStatistics()])
+
+      setState({
+        records,
+        stats,
+        loading: false,
+        error: null,
+      })
+    } catch (error) {
+      logError(error, "useHealthRecords.fetchRecords")
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: getErrorMessage(error),
+      }))
     }
-  }, [isAuthenticated, user, JSON.stringify(filters)])
+  }
 
+  // 認証状態が変わったらデータを取得
   useEffect(() => {
-    fetchRecords()
-  }, [fetchRecords])
-
-  // リアルタイム更新の監視
-  useEffect(() => {
-    if (!user) return
-
-    const subscription = HealthRecordsService.subscribeToChanges(user.id, (payload) => {
-      console.log("Health record changed:", payload)
-      fetchRecords() // データを再取得
-    })
-
-    return () => {
-      subscription.unsubscribe()
+    if (isAuthenticated) {
+      fetchRecords()
+    } else {
+      setState({
+        records: [],
+        stats: null,
+        loading: false,
+        error: null,
+      })
     }
-  }, [user, fetchRecords])
+  }, [isAuthenticated, user?.id])
 
+  // 体調記録を追加
   const addRecord = async (date: string, status: HealthStatus, notes?: string) => {
     try {
-      const newRecord = await HealthRecordsService.upsertByDate(date, status, notes)
+      const record = await HealthRecordsService.upsertByDate(date, status, notes)
 
-      // ローカル状態を更新
-      setRecords((prev) => {
-        const filtered = prev.filter((record) => record.date !== date)
-        return [newRecord, ...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      setState((prev) => {
+        const existingIndex = prev.records.findIndex((r) => r.date === date)
+        const newRecords = [...prev.records]
+
+        if (existingIndex >= 0) {
+          newRecords[existingIndex] = record
+        } else {
+          newRecords.unshift(record)
+          newRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        }
+
+        return {
+          ...prev,
+          records: newRecords,
+          error: null,
+        }
       })
 
-      return newRecord
-    } catch (err: any) {
-      setError(err.message || "記録の追加に失敗しました。")
-      throw err
+      // 統計を再計算
+      await refreshStats()
+
+      return record
+    } catch (error) {
+      logError(error, "useHealthRecords.addRecord")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
-  const updateRecord = async (id: string, updates: Partial<HealthRecord>) => {
-    try {
-      const updatedRecord = await HealthRecordsService.update(id, updates)
-
-      // ローカル状態を更新
-      setRecords((prev) => prev.map((record) => (record.id === id ? updatedRecord : record)))
-
-      return updatedRecord
-    } catch (err: any) {
-      setError(err.message || "記録の更新に失敗しました。")
-      throw err
-    }
+  // 日付で体調記録を更新
+  const updateRecordByDate = async (date: string, status: HealthStatus, notes?: string) => {
+    return addRecord(date, status, notes)
   }
 
+  // 体調記録を削除
   const deleteRecord = async (id: string) => {
     try {
       await HealthRecordsService.delete(id)
 
-      // ローカル状態を更新
-      setRecords((prev) => prev.filter((record) => record.id !== id))
-    } catch (err: any) {
-      setError(err.message || "記録の削除に失敗しました。")
-      throw err
+      setState((prev) => ({
+        ...prev,
+        records: prev.records.filter((r) => r.id !== id),
+        error: null,
+      }))
+
+      // 統計を再計算
+      await refreshStats()
+    } catch (error) {
+      logError(error, "useHealthRecords.deleteRecord")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
+  // 特定の日付の記録を取得
   const getRecordByDate = (date: string): HealthRecord | undefined => {
-    return records.find((record) => record.date === date)
+    return state.records.find((record) => record.date === date)
   }
 
+  // 統計を更新
+  const refreshStats = async () => {
+    try {
+      const stats = await HealthRecordsService.getStatistics()
+      setState((prev) => ({ ...prev, stats }))
+    } catch (error) {
+      logError(error, "useHealthRecords.refreshStats")
+    }
+  }
+
+  // サンプルデータを生成
   const generateSampleData = async (days = 30) => {
+    setState((prev) => ({ ...prev, loading: true, error: null }))
+
     try {
-      setLoading(true)
       await HealthRecordsService.generateSampleData(days)
-      await fetchRecords()
-    } catch (err: any) {
-      setError(err.message || "サンプルデータの生成に失敗しました。")
-      throw err
-    } finally {
-      setLoading(false)
+      await fetchRecords() // データを再取得
+    } catch (error) {
+      logError(error, "useHealthRecords.generateSampleData")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+      }))
+      throw error
     }
   }
 
-  const getStats = async (statsFilters?: HealthRecordFilters) => {
-    try {
-      return await HealthRecordsService.getStats(statsFilters || filters)
-    } catch (err: any) {
-      setError(err.message || "統計データの取得に失敗しました。")
-      throw err
-    }
+  // エラーをクリア
+  const clearError = () => {
+    setState((prev) => ({ ...prev, error: null }))
   }
 
   return {
-    records,
-    loading,
-    error,
+    records: state.records,
+    stats: state.stats,
+    loading: state.loading,
+    error: state.error,
     addRecord,
-    updateRecord,
+    updateRecordByDate,
     deleteRecord,
     getRecordByDate,
     generateSampleData,
-    getStats,
+    refreshStats,
     refetch: fetchRecords,
-    clearError: () => setError(null),
+    clearError,
   }
 }

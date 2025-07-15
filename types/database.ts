@@ -1,4 +1,4 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type HealthStatus = "good" | "normal" | "bad"
 
 export interface Database {
   public: {
@@ -8,7 +8,7 @@ export interface Database {
           id: string
           user_id: string
           date: string
-          status: "good" | "normal" | "bad"
+          status: HealthStatus
           notes: string | null
           created_at: string
           updated_at: string
@@ -17,7 +17,7 @@ export interface Database {
           id?: string
           user_id: string
           date: string
-          status: "good" | "normal" | "bad"
+          status: HealthStatus
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -26,7 +26,7 @@ export interface Database {
           id?: string
           user_id?: string
           date?: string
-          status?: "good" | "normal" | "bad"
+          status?: HealthStatus
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -38,8 +38,9 @@ export interface Database {
           user_id: string
           title: string
           description: string | null
-          start_date: string
-          end_date: string | null
+          date: string
+          start_time: string | null
+          end_time: string | null
           is_all_day: boolean
           calendar_source: string
           external_id: string | null
@@ -51,8 +52,9 @@ export interface Database {
           user_id: string
           title: string
           description?: string | null
-          start_date: string
-          end_date?: string | null
+          date: string
+          start_time?: string | null
+          end_time?: string | null
           is_all_day?: boolean
           calendar_source?: string
           external_id?: string | null
@@ -64,8 +66,9 @@ export interface Database {
           user_id?: string
           title?: string
           description?: string | null
-          start_date?: string
-          end_date?: string | null
+          date?: string
+          start_time?: string | null
+          end_time?: string | null
           is_all_day?: boolean
           calendar_source?: string
           external_id?: string | null
@@ -115,22 +118,9 @@ export interface Database {
         }
       }
     }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      [_ in never]: never
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
   }
 }
 
-// 便利な型エイリアス
 export type HealthRecord = Database["public"]["Tables"]["health_records"]["Row"]
 export type HealthRecordInsert = Database["public"]["Tables"]["health_records"]["Insert"]
 export type HealthRecordUpdate = Database["public"]["Tables"]["health_records"]["Update"]
@@ -142,6 +132,3 @@ export type ScheduleUpdate = Database["public"]["Tables"]["schedules"]["Update"]
 export type UserSettings = Database["public"]["Tables"]["user_settings"]["Row"]
 export type UserSettingsInsert = Database["public"]["Tables"]["user_settings"]["Insert"]
 export type UserSettingsUpdate = Database["public"]["Tables"]["user_settings"]["Update"]
-
-export type HealthStatus = "good" | "normal" | "bad"
-export type Theme = "light" | "dark" | "system"

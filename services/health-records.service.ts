@@ -1,24 +1,6 @@
 import { supabase } from "@/lib/supabase"
-import { handleSupabaseError, DatabaseError, ValidationError, validateHealthStatus } from "@/lib/errors"
+import { handleSupabaseError, DatabaseError } from "@/lib/errors"
 import type { HealthRecord, HealthRecordInsert, HealthRecordUpdate, HealthStatus } from "@/types/database"
-
-export interface HealthRecordFilters {
-  startDate?: string
-  endDate?: string
-  status?: HealthStatus
-  limit?: number
-  offset?: number
-}
-
-export interface HealthRecordStats {
-  total: number
-  good: number
-  normal: number
-  bad: number
-  goodPercentage: number
-  normalPercentage: number
-  badPercentage: number
-}
 
 export class HealthRecordsService {
   /**
@@ -26,30 +8,22 @@ export class HealthRecordsService {
    */
   static async create(data: Omit<HealthRecordInsert, "user_id">): Promise<HealthRecord> {
     try {
-      // 現在のユーザーを取得
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
-      // バリデーション
-      if (!data.date) {
-        throw new ValidationError("日付は必須です。", "date")
-      }
-
-      if (!data.status || !validateHealthStatus(data.status)) {
-        throw new ValidationError("有効な体調ステータスを選択してください。", "status")
-      }
-
-      const insertData: HealthRecordInsert = {
-        ...data,
-        user_id: user.id,
-      }
-
-      const { data: record, error } = await supabase.from("health_records").insert(insertData).select().single()
+      const { data: record, error } = await supabase
+        .from("health_records")
+        .insert({
+          ...data,
+          user_id: user.id,
+        })
+        .select()
+        .single()
 
       if (error) {
         handleSupabaseError(error)
@@ -57,132 +31,65 @@ export class HealthRecordsService {
 
       return record
     } catch (error) {
-      if (error instanceof ValidationError || error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
 
   /**
-   * 体調記録を取得（フィルター付き）
+   * 体調記録を取得（ユーザー別）
    */
-  static async getAll(filters: HealthRecordFilters = {}): Promise<HealthRecord[]> {
+  static async getAll(): Promise<HealthRecord[]> {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
-      let query = supabase.from("health_records").select("*").eq("user_id", user.id).order("date", { ascending: false })
-
-      // フィルターを適用
-      if (filters.startDate) {
-        query = query.gte("date", filters.startDate)
-      }
-
-      if (filters.endDate) {
-        query = query.lte("date", filters.endDate)
-      }
-
-      if (filters.status) {
-        query = query.eq("status", filters.status)
-      }
-
-      if (filters.limit) {
-        query = query.limit(filters.limit)
-      }
-
-      if (filters.offset) {
-        query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1)
-      }
-
-      const { data, error } = await query
-
-      if (error) {
-        handleSupabaseError(error)
-      }
-
-      return data || []
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
-      handleSupabaseError(error)
-    }
-  }
-
-  /**
-   * IDで体調記録を取得
-   */
-  static async getById(id: string): Promise<HealthRecord | null> {
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-      if (userError || !user) {
-        throw new DatabaseError("認証が必要です。")
-      }
-
-      const { data, error } = await supabase
+      const { data: records, error } = await supabase
         .from("health_records")
         .select("*")
-        .eq("id", id)
         .eq("user_id", user.id)
-        .single()
+        .order("date", { ascending: false })
 
       if (error) {
-        if (error.code === "PGRST116") {
-          return null
-        }
         handleSupabaseError(error)
       }
 
-      return data
+      return records || []
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
 
   /**
-   * 日付で体調記録を取得
+   * 特定の日付の体調記録を取得
    */
   static async getByDate(date: string): Promise<HealthRecord | null> {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
-      const { data, error } = await supabase
+      const { data: record, error } = await supabase
         .from("health_records")
         .select("*")
-        .eq("date", date)
         .eq("user_id", user.id)
+        .eq("date", date)
         .single()
 
-      if (error) {
-        if (error.code === "PGRST116") {
-          return null
-        }
+      if (error && error.code !== "PGRST116") {
         handleSupabaseError(error)
       }
 
-      return data
+      return record || null
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
@@ -194,20 +101,18 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
-        throw new DatabaseError("認証が必要です。")
-      }
 
-      // バリデーション
-      if (data.status && !validateHealthStatus(data.status)) {
-        throw new ValidationError("有効な体調ステータスを選択してください。", "status")
+      if (!user) {
+        throw new DatabaseError("認証が必要です。")
       }
 
       const { data: record, error } = await supabase
         .from("health_records")
-        .update(data)
+        .update({
+          ...data,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", id)
         .eq("user_id", user.id)
         .select()
@@ -219,44 +124,37 @@ export class HealthRecordsService {
 
       return record
     } catch (error) {
-      if (error instanceof ValidationError || error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
 
   /**
-   * 日付で体調記録をアップサート（存在すれば更新、なければ作成）
+   * 日付で体調記録を更新または作成
    */
   static async upsertByDate(date: string, status: HealthStatus, notes?: string): Promise<HealthRecord> {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
-      }
-
-      // バリデーション
-      if (!validateHealthStatus(status)) {
-        throw new ValidationError("有効な体調ステータスを選択してください。", "status")
-      }
-
-      const upsertData: HealthRecordInsert = {
-        user_id: user.id,
-        date,
-        status,
-        notes,
       }
 
       const { data: record, error } = await supabase
         .from("health_records")
-        .upsert(upsertData, {
-          onConflict: "user_id,date",
-          ignoreDuplicates: false,
-        })
+        .upsert(
+          {
+            user_id: user.id,
+            date,
+            status,
+            notes,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "user_id,date",
+          },
+        )
         .select()
         .single()
 
@@ -266,9 +164,6 @@ export class HealthRecordsService {
 
       return record
     } catch (error) {
-      if (error instanceof ValidationError || error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
@@ -280,9 +175,9 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
@@ -292,24 +187,42 @@ export class HealthRecordsService {
         handleSupabaseError(error)
       }
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
 
   /**
-   * 統計データを取得
+   * 期間別の統計を取得
    */
-  static async getStats(filters: HealthRecordFilters = {}): Promise<HealthRecordStats> {
+  static async getStatistics(startDate?: string, endDate?: string) {
     try {
-      const records = await this.getAll(filters)
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-      const total = records.length
-      const good = records.filter((r) => r.status === "good").length
-      const normal = records.filter((r) => r.status === "normal").length
-      const bad = records.filter((r) => r.status === "bad").length
+      if (!user) {
+        throw new DatabaseError("認証が必要です。")
+      }
+
+      let query = supabase.from("health_records").select("*").eq("user_id", user.id)
+
+      if (startDate) {
+        query = query.gte("date", startDate)
+      }
+      if (endDate) {
+        query = query.lte("date", endDate)
+      }
+
+      const { data: records, error } = await query.order("date", { ascending: false })
+
+      if (error) {
+        handleSupabaseError(error)
+      }
+
+      const total = records?.length || 0
+      const good = records?.filter((r) => r.status === "good").length || 0
+      const normal = records?.filter((r) => r.status === "normal").length || 0
+      const bad = records?.filter((r) => r.status === "bad").length || 0
 
       return {
         total,
@@ -319,6 +232,7 @@ export class HealthRecordsService {
         goodPercentage: total > 0 ? Math.round((good / total) * 100) : 0,
         normalPercentage: total > 0 ? Math.round((normal / total) * 100) : 0,
         badPercentage: total > 0 ? Math.round((bad / total) * 100) : 0,
+        records: records || [],
       }
     } catch (error) {
       handleSupabaseError(error)
@@ -332,9 +246,9 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
@@ -366,7 +280,7 @@ export class HealthRecordsService {
         })
       }
 
-      const { data, error } = await supabase
+      const { data: records, error } = await supabase
         .from("health_records")
         .upsert(sampleRecords, { onConflict: "user_id,date" })
         .select()
@@ -375,31 +289,9 @@ export class HealthRecordsService {
         handleSupabaseError(error)
       }
 
-      return data || []
+      return records || []
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
-  }
-
-  /**
-   * リアルタイム変更を監視
-   */
-  static subscribeToChanges(userId: string, callback: (payload: any) => void) {
-    return supabase
-      .channel("health_records_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "health_records",
-          filter: `user_id=eq.${userId}`,
-        },
-        callback,
-      )
-      .subscribe()
   }
 }

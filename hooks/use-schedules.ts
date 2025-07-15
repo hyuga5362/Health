@@ -1,128 +1,174 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { SchedulesService, type ScheduleFilters } from "@/services/schedules.service"
-import type { Schedule, ScheduleInsert } from "@/types/database"
+import { useState, useEffect } from "react"
+import { SchedulesService } from "@/services/schedules.service"
+import { getErrorMessage, logError } from "@/lib/errors"
 import { useAuth } from "./use-auth"
+import type { Schedule, ScheduleInsert } from "@/types/database"
 
-export function useSchedules(filters: ScheduleFilters = {}) {
-  const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const { user, isAuthenticated } = useAuth()
+interface SchedulesState {
+  schedules: Schedule[]
+  loading: boolean
+  error: string | null
+}
 
-  const fetchSchedules = useCallback(async () => {
-    if (!isAuthenticated || !user) {
-      setSchedules([])
-      setLoading(false)
-      return
-    }
+export function useSchedules() {
+  const { isAuthenticated, user } = useAuth()
+  const [state, setState] = useState<SchedulesState>({
+    schedules: [],
+    loading: false,
+    error: null,
+  })
+
+  // スケジュールを取得
+  const fetchSchedules = async () => {
+    if (!isAuthenticated) return
+
+    setState((prev) => ({ ...prev, loading: true, error: null }))
 
     try {
-      setLoading(true)
-      setError(null)
-      const data = await SchedulesService.getAll(filters)
-      setSchedules(data)
-    } catch (err: any) {
-      setError(err.message || "スケジュールの取得に失敗しました。")
-      setSchedules([])
-    } finally {
-      setLoading(false)
+      const schedules = await SchedulesService.getAll()
+      setState({
+        schedules,
+        loading: false,
+        error: null,
+      })
+    } catch (error) {
+      logError(error, "useSchedules.fetchSchedules")
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: getErrorMessage(error),
+      }))
     }
-  }, [isAuthenticated, user, JSON.stringify(filters)])
+  }
 
+  // 認証状態が変わったらスケジュールを取得
   useEffect(() => {
-    fetchSchedules()
-  }, [fetchSchedules])
-
-  // リアルタイム更新の監視
-  useEffect(() => {
-    if (!user) return
-
-    const subscription = SchedulesService.subscribeToChanges(user.id, (payload) => {
-      console.log("Schedule changed:", payload)
-      fetchSchedules() // データを再取得
-    })
-
-    return () => {
-      subscription.unsubscribe()
+    if (isAuthenticated) {
+      fetchSchedules()
+    } else {
+      setState({
+        schedules: [],
+        loading: false,
+        error: null,
+      })
     }
-  }, [user, fetchSchedules])
+  }, [isAuthenticated, user?.id])
 
+  // スケジュールを追加
   const addSchedule = async (data: Omit<ScheduleInsert, "user_id">) => {
     try {
-      const newSchedule = await SchedulesService.create(data)
+      const schedule = await SchedulesService.create(data)
 
-      // ローカル状態を更新
-      setSchedules((prev) =>
-        [...prev, newSchedule].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()),
-      )
+      setState((prev) => ({
+        ...prev,
+        schedules: [...prev.schedules, schedule].sort((a, b) => {
+          const dateCompare = a.date.localeCompare(b.date)
+          if (dateCompare !== 0) return dateCompare
+          return (a.start_time || "").localeCompare(b.start_time || "")
+        }),
+        error: null,
+      }))
 
-      return newSchedule
-    } catch (err: any) {
-      setError(err.message || "スケジュールの追加に失敗しました。")
-      throw err
+      return schedule
+    } catch (error) {
+      logError(error, "useSchedules.addSchedule")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
-  const updateSchedule = async (id: string, updates: Partial<Schedule>) => {
+  // スケジュールを更新
+  const updateSchedule = async (id: string, data: Partial<ScheduleInsert>) => {
     try {
-      const updatedSchedule = await SchedulesService.update(id, updates)
+      const schedule = await SchedulesService.update(id, data)
 
-      // ローカル状態を更新
-      setSchedules((prev) =>
-        prev
-          .map((schedule) => (schedule.id === id ? updatedSchedule : schedule))
-          .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()),
-      )
+      setState((prev) => ({
+        ...prev,
+        schedules: prev.schedules.map((s) => (s.id === id ? schedule : s)),
+        error: null,
+      }))
 
-      return updatedSchedule
-    } catch (err: any) {
-      setError(err.message || "スケジュールの更新に失敗しました。")
-      throw err
+      return schedule
+    } catch (error) {
+      logError(error, "useSchedules.updateSchedule")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
+  // スケジュールを削除
   const deleteSchedule = async (id: string) => {
     try {
       await SchedulesService.delete(id)
 
-      // ローカル状態を更新
-      setSchedules((prev) => prev.filter((schedule) => schedule.id !== id))
-    } catch (err: any) {
-      setError(err.message || "スケジュールの削除に失敗しました。")
-      throw err
+      setState((prev) => ({
+        ...prev,
+        schedules: prev.schedules.filter((s) => s.id !== id),
+        error: null,
+      }))
+    } catch (error) {
+      logError(error, "useSchedules.deleteSchedule")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
+  // 特定の日付のスケジュールを取得
+  const getSchedulesByDate = (date: string): Schedule[] => {
+    return state.schedules.filter((schedule) => schedule.date === date)
+  }
+
+  // 期間別のスケジュールを取得
   const getSchedulesByDateRange = async (startDate: string, endDate: string) => {
     try {
-      return await SchedulesService.getByDateRange(startDate, endDate)
-    } catch (err: any) {
-      setError(err.message || "スケジュールの取得に失敗しました。")
-      throw err
+      const schedules = await SchedulesService.getByDateRange(startDate, endDate)
+      return schedules
+    } catch (error) {
+      logError(error, "useSchedules.getSchedulesByDateRange")
+      throw error
     }
   }
 
-  const getCountBySource = async () => {
+  // 外部カレンダーから同期
+  const syncFromExternalCalendar = async (source: string, schedules: Omit<ScheduleInsert, "user_id">[]) => {
+    setState((prev) => ({ ...prev, loading: true, error: null }))
+
     try {
-      return await SchedulesService.getCountBySource()
-    } catch (err: any) {
-      setError(err.message || "統計データの取得に失敗しました。")
-      throw err
+      await SchedulesService.syncFromExternalCalendar(source, schedules)
+      await fetchSchedules() // データを再取得
+    } catch (error) {
+      logError(error, "useSchedules.syncFromExternalCalendar")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+      }))
+      throw error
     }
+  }
+
+  // エラーをクリア
+  const clearError = () => {
+    setState((prev) => ({ ...prev, error: null }))
   }
 
   return {
-    schedules,
-    loading,
-    error,
+    schedules: state.schedules,
+    loading: state.loading,
+    error: state.error,
     addSchedule,
     updateSchedule,
     deleteSchedule,
+    getSchedulesByDate,
     getSchedulesByDateRange,
-    getCountBySource,
+    syncFromExternalCalendar,
     refetch: fetchSchedules,
-    clearError: () => setError(null),
+    clearError,
   }
 }

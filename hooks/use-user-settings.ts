@@ -1,155 +1,161 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { UserSettingsService } from "@/services/user-settings.service"
-import type { UserSettings, Theme } from "@/types/database"
+import { getErrorMessage, logError } from "@/lib/errors"
 import { useAuth } from "./use-auth"
+import type { UserSettings } from "@/types/database"
+
+interface UserSettingsState {
+  settings: UserSettings | null
+  loading: boolean
+  error: string | null
+}
 
 export function useUserSettings() {
-  const [settings, setSettings] = useState<UserSettings | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const { user, isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const [state, setState] = useState<UserSettingsState>({
+    settings: null,
+    loading: false,
+    error: null,
+  })
 
-  const fetchSettings = useCallback(async () => {
-    if (!isAuthenticated || !user) {
-      setSettings(null)
-      setLoading(false)
-      return
-    }
+  // 設定を取得
+  const fetchSettings = async () => {
+    if (!isAuthenticated) return
+
+    setState((prev) => ({ ...prev, loading: true, error: null }))
 
     try {
-      setLoading(true)
-      setError(null)
-      const data = await UserSettingsService.get()
-      setSettings(data)
-    } catch (err: any) {
-      setError(err.message || "設定の取得に失敗しました。")
-      setSettings(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [isAuthenticated, user])
-
-  useEffect(() => {
-    fetchSettings()
-  }, [fetchSettings])
-
-  // リアルタイム更新の監視
-  useEffect(() => {
-    if (!user) return
-
-    const subscription = UserSettingsService.subscribeToChanges(user.id, (payload) => {
-      console.log("User settings changed:", payload)
-      fetchSettings() // データを再取得
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [user, fetchSettings])
-
-  const updateSettings = async (updates: Partial<UserSettings>) => {
-    try {
-      const updatedSettings = await UserSettingsService.update(updates)
-      setSettings(updatedSettings)
-      return updatedSettings
-    } catch (err: any) {
-      setError(err.message || "設定の更新に失敗しました。")
-      throw err
+      const settings = await UserSettingsService.get()
+      setState({
+        settings,
+        loading: false,
+        error: null,
+      })
+    } catch (error) {
+      logError(error, "useUserSettings.fetchSettings")
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: getErrorMessage(error),
+      }))
     }
   }
 
+  // 認証状態が変わったら設定を取得
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchSettings()
+    } else {
+      setState({
+        settings: null,
+        loading: false,
+        error: null,
+      })
+    }
+  }, [isAuthenticated, user?.id])
+
+  // フォントサイズを更新
   const updateFontSize = async (fontSize: number) => {
     try {
-      const updatedSettings = await UserSettingsService.updateFontSize(fontSize)
-      setSettings(updatedSettings)
-      return updatedSettings
-    } catch (err: any) {
-      setError(err.message || "フォントサイズの更新に失敗しました。")
-      throw err
+      const settings = await UserSettingsService.updateFontSize(fontSize)
+      setState((prev) => ({ ...prev, settings, error: null }))
+      return settings
+    } catch (error) {
+      logError(error, "useUserSettings.updateFontSize")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
-  const toggleWeekStartsMonday = async () => {
+  // 週の開始日を更新
+  const updateWeekStartsMonday = async (weekStartsMonday: boolean) => {
     try {
-      const updatedSettings = await UserSettingsService.toggleWeekStartsMonday()
-      setSettings(updatedSettings)
-      return updatedSettings
-    } catch (err: any) {
-      setError(err.message || "週開始曜日の更新に失敗しました。")
-      throw err
+      const settings = await UserSettingsService.updateWeekStartsMonday(weekStartsMonday)
+      setState((prev) => ({ ...prev, settings, error: null }))
+      return settings
+    } catch (error) {
+      logError(error, "useUserSettings.updateWeekStartsMonday")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
-  const updateTheme = async (theme: Theme) => {
+  // テーマを更新
+  const updateTheme = async (theme: "light" | "dark" | "system") => {
     try {
-      const updatedSettings = await UserSettingsService.updateTheme(theme)
-      setSettings(updatedSettings)
-      return updatedSettings
-    } catch (err: any) {
-      setError(err.message || "テーマの更新に失敗しました。")
-      throw err
+      const settings = await UserSettingsService.updateTheme(theme)
+      setState((prev) => ({ ...prev, settings, error: null }))
+      return settings
+    } catch (error) {
+      logError(error, "useUserSettings.updateTheme")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
-  const toggleNotifications = async () => {
+  // 通知設定を更新
+  const updateNotifications = async (enabled: boolean, reminderTime?: string) => {
     try {
-      const updatedSettings = await UserSettingsService.toggleNotifications()
-      setSettings(updatedSettings)
-      return updatedSettings
-    } catch (err: any) {
-      setError(err.message || "通知設定の更新に失敗しました。")
-      throw err
+      const settings = await UserSettingsService.updateNotifications(enabled, reminderTime)
+      setState((prev) => ({ ...prev, settings, error: null }))
+      return settings
+    } catch (error) {
+      logError(error, "useUserSettings.updateNotifications")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
-  const updateReminderTime = async (time: string) => {
+  // カレンダー連携設定を更新
+  const updateCalendarIntegration = async (googleConnected?: boolean, appleConnected?: boolean) => {
     try {
-      const updatedSettings = await UserSettingsService.updateReminderTime(time)
-      setSettings(updatedSettings)
-      return updatedSettings
-    } catch (err: any) {
-      setError(err.message || "リマインダー時間の更新に失敗しました。")
-      throw err
+      const settings = await UserSettingsService.updateCalendarIntegration(googleConnected, appleConnected)
+      setState((prev) => ({ ...prev, settings, error: null }))
+      return settings
+    } catch (error) {
+      logError(error, "useUserSettings.updateCalendarIntegration")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
-  const updateGoogleCalendarConnection = async (connected: boolean) => {
+  // 設定をリセット
+  const resetSettings = async () => {
     try {
-      const updatedSettings = await UserSettingsService.updateGoogleCalendarConnection(connected)
-      setSettings(updatedSettings)
-      return updatedSettings
-    } catch (err: any) {
-      setError(err.message || "Google Calendar連携の更新に失敗しました。")
-      throw err
+      const settings = await UserSettingsService.reset()
+      setState((prev) => ({ ...prev, settings, error: null }))
+      return settings
+    } catch (error) {
+      logError(error, "useUserSettings.resetSettings")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({ ...prev, error: errorMessage }))
+      throw error
     }
   }
 
-  const updateAppleCalendarConnection = async (connected: boolean) => {
-    try {
-      const updatedSettings = await UserSettingsService.updateAppleCalendarConnection(connected)
-      setSettings(updatedSettings)
-      return updatedSettings
-    } catch (err: any) {
-      setError(err.message || "Apple Calendar連携の更新に失敗しました。")
-      throw err
-    }
+  // エラーをクリア
+  const clearError = () => {
+    setState((prev) => ({ ...prev, error: null }))
   }
 
   return {
-    settings,
-    loading,
-    error,
-    updateSettings,
+    settings: state.settings,
+    loading: state.loading,
+    error: state.error,
     updateFontSize,
-    toggleWeekStartsMonday,
+    updateWeekStartsMonday,
     updateTheme,
-    toggleNotifications,
-    updateReminderTime,
-    updateGoogleCalendarConnection,
-    updateAppleCalendarConnection,
+    updateNotifications,
+    updateCalendarIntegration,
+    resetSettings,
     refetch: fetchSettings,
-    clearError: () => setError(null),
+    clearError,
   }
 }

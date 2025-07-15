@@ -1,22 +1,38 @@
 import { supabase } from "@/lib/supabase"
-import { handleSupabaseError, DatabaseError, ValidationError, validateTheme } from "@/lib/errors"
-import type { UserSettings, UserSettingsInsert, UserSettingsUpdate, Theme } from "@/types/database"
+import { handleSupabaseError, DatabaseError } from "@/lib/errors"
+import type { UserSettings, UserSettingsInsert, UserSettingsUpdate } from "@/types/database"
 
 export class UserSettingsService {
   /**
-   * ユーザー設定を作成（初期化）
+   * ユーザー設定を取得（なければ作成）
    */
-  static async create(data: Partial<Omit<UserSettingsInsert, "user_id">> = {}): Promise<UserSettings> {
+  static async get(): Promise<UserSettings> {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
-      // デフォルト設定
+      // 既存の設定を取得
+      const { data: existingSettings, error: fetchError } = await supabase
+        .from("user_settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .single()
+
+      if (fetchError && fetchError.code !== "PGRST116") {
+        handleSupabaseError(fetchError)
+      }
+
+      // 設定が存在する場合は返す
+      if (existingSettings) {
+        return existingSettings
+      }
+
+      // 設定が存在しない場合は初期設定を作成
       const defaultSettings: UserSettingsInsert = {
         user_id: user.id,
         font_size: 16,
@@ -26,61 +42,20 @@ export class UserSettingsService {
         theme: "light",
         notifications_enabled: true,
         reminder_time: "09:00:00",
-        ...data,
       }
 
-      // バリデーション
-      if (defaultSettings.font_size && (defaultSettings.font_size < 12 || defaultSettings.font_size > 24)) {
-        throw new ValidationError("フォントサイズは12から24の間で設定してください。", "font_size")
+      const { data: newSettings, error: createError } = await supabase
+        .from("user_settings")
+        .insert(defaultSettings)
+        .select()
+        .single()
+
+      if (createError) {
+        handleSupabaseError(createError)
       }
 
-      if (defaultSettings.theme && !validateTheme(defaultSettings.theme)) {
-        throw new ValidationError("有効なテーマを選択してください。", "theme")
-      }
-
-      const { data: settings, error } = await supabase.from("user_settings").insert(defaultSettings).select().single()
-
-      if (error) {
-        handleSupabaseError(error)
-      }
-
-      return settings
+      return newSettings
     } catch (error) {
-      if (error instanceof ValidationError || error instanceof DatabaseError) {
-        throw error
-      }
-      handleSupabaseError(error)
-    }
-  }
-
-  /**
-   * ユーザー設定を取得
-   */
-  static async get(): Promise<UserSettings | null> {
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-      if (userError || !user) {
-        throw new DatabaseError("認証が必要です。")
-      }
-
-      const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user.id).single()
-
-      if (error) {
-        if (error.code === "PGRST116") {
-          // 設定が存在しない場合は初期化
-          return await this.create()
-        }
-        handleSupabaseError(error)
-      }
-
-      return data
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
@@ -88,28 +63,22 @@ export class UserSettingsService {
   /**
    * ユーザー設定を更新
    */
-  static async update(data: UserSettingsUpdate): Promise<UserSettings> {
+  static async update(data: Partial<UserSettingsUpdate>): Promise<UserSettings> {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
-      }
-
-      // バリデーション
-      if (data.font_size !== undefined && (data.font_size < 12 || data.font_size > 24)) {
-        throw new ValidationError("フォントサイズは12から24の間で設定してください。", "font_size")
-      }
-
-      if (data.theme !== undefined && !validateTheme(data.theme)) {
-        throw new ValidationError("有効なテーマを選択してください。", "theme")
       }
 
       const { data: settings, error } = await supabase
         .from("user_settings")
-        .update(data)
+        .update({
+          ...data,
+          updated_at: new Date().toISOString(),
+        })
         .eq("user_id", user.id)
         .select()
         .single()
@@ -120,9 +89,6 @@ export class UserSettingsService {
 
       return settings
     } catch (error) {
-      if (error instanceof ValidationError || error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
@@ -131,123 +97,97 @@ export class UserSettingsService {
    * フォントサイズを更新
    */
   static async updateFontSize(fontSize: number): Promise<UserSettings> {
+    if (fontSize < 12 || fontSize > 24) {
+      throw new DatabaseError("フォントサイズは12px〜24pxの範囲で設定してください。")
+    }
+
     return this.update({ font_size: fontSize })
   }
 
   /**
-   * 週の開始曜日を切り替え
+   * 週の開始日を更新
    */
-  static async toggleWeekStartsMonday(): Promise<UserSettings> {
-    try {
-      const currentSettings = await this.get()
-      if (!currentSettings) {
-        throw new DatabaseError("設定が見つかりません。")
-      }
-
-      return this.update({ week_starts_monday: !currentSettings.week_starts_monday })
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
-      handleSupabaseError(error)
-    }
+  static async updateWeekStartsMonday(weekStartsMonday: boolean): Promise<UserSettings> {
+    return this.update({ week_starts_monday: weekStartsMonday })
   }
 
   /**
    * テーマを更新
    */
-  static async updateTheme(theme: Theme): Promise<UserSettings> {
+  static async updateTheme(theme: "light" | "dark" | "system"): Promise<UserSettings> {
     return this.update({ theme })
   }
 
   /**
-   * 通知設定を切り替え
+   * 通知設定を更新
    */
-  static async toggleNotifications(): Promise<UserSettings> {
-    try {
-      const currentSettings = await this.get()
-      if (!currentSettings) {
-        throw new DatabaseError("設定が見つかりません。")
-      }
-
-      return this.update({ notifications_enabled: !currentSettings.notifications_enabled })
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
-      handleSupabaseError(error)
-    }
-  }
-
-  /**
-   * リマインダー時間を更新
-   */
-  static async updateReminderTime(time: string): Promise<UserSettings> {
-    // 時間形式のバリデーション
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/
-    if (!timeRegex.test(time)) {
-      throw new ValidationError("有効な時間形式（HH:MM:SS）で入力してください。", "reminder_time")
+  static async updateNotifications(enabled: boolean, reminderTime?: string): Promise<UserSettings> {
+    const updateData: Partial<UserSettingsUpdate> = {
+      notifications_enabled: enabled,
     }
 
-    return this.update({ reminder_time: time })
+    if (reminderTime) {
+      updateData.reminder_time = reminderTime
+    }
+
+    return this.update(updateData)
   }
 
   /**
-   * Google Calendar連携を更新
+   * カレンダー連携設定を更新
    */
-  static async updateGoogleCalendarConnection(connected: boolean): Promise<UserSettings> {
-    return this.update({ google_calendar_connected: connected })
+  static async updateCalendarIntegration(googleConnected?: boolean, appleConnected?: boolean): Promise<UserSettings> {
+    const updateData: Partial<UserSettingsUpdate> = {}
+
+    if (googleConnected !== undefined) {
+      updateData.google_calendar_connected = googleConnected
+    }
+
+    if (appleConnected !== undefined) {
+      updateData.apple_calendar_connected = appleConnected
+    }
+
+    return this.update(updateData)
   }
 
   /**
-   * Apple Calendar連携を更新
+   * 設定をリセット
    */
-  static async updateAppleCalendarConnection(connected: boolean): Promise<UserSettings> {
-    return this.update({ apple_calendar_connected: connected })
-  }
-
-  /**
-   * ユーザー設定を削除
-   */
-  static async delete(): Promise<void> {
+  static async reset(): Promise<UserSettings> {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
-      const { error } = await supabase.from("user_settings").delete().eq("user_id", user.id)
+      const defaultSettings: Partial<UserSettingsUpdate> = {
+        font_size: 16,
+        week_starts_monday: false,
+        google_calendar_connected: false,
+        apple_calendar_connected: false,
+        theme: "light",
+        notifications_enabled: true,
+        reminder_time: "09:00:00",
+        updated_at: new Date().toISOString(),
+      }
+
+      const { data: settings, error } = await supabase
+        .from("user_settings")
+        .update(defaultSettings)
+        .eq("user_id", user.id)
+        .select()
+        .single()
 
       if (error) {
         handleSupabaseError(error)
       }
+
+      return settings
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
-  }
-
-  /**
-   * リアルタイム変更を監視
-   */
-  static subscribeToChanges(userId: string, callback: (payload: any) => void) {
-    return supabase
-      .channel("user_settings_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "user_settings",
-          filter: `user_id=eq.${userId}`,
-        },
-        callback,
-      )
-      .subscribe()
   }
 }

@@ -1,14 +1,6 @@
 import { supabase } from "@/lib/supabase"
-import { handleSupabaseError, DatabaseError, ValidationError } from "@/lib/errors"
+import { handleSupabaseError, DatabaseError } from "@/lib/errors"
 import type { Schedule, ScheduleInsert, ScheduleUpdate } from "@/types/database"
-
-export interface ScheduleFilters {
-  startDate?: string
-  endDate?: string
-  calendarSource?: string
-  limit?: number
-  offset?: number
-}
 
 export class SchedulesService {
   /**
@@ -18,28 +10,21 @@ export class SchedulesService {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
-      // バリデーション
-      if (!data.title?.trim()) {
-        throw new ValidationError("タイトルは必須です。", "title")
-      }
-
-      if (!data.start_date) {
-        throw new ValidationError("開始日時は必須です。", "start_date")
-      }
-
-      const insertData: ScheduleInsert = {
-        ...data,
-        user_id: user.id,
-        calendar_source: data.calendar_source || "manual",
-      }
-
-      const { data: schedule, error } = await supabase.from("schedules").insert(insertData).select().single()
+      const { data: schedule, error } = await supabase
+        .from("schedules")
+        .insert({
+          ...data,
+          user_id: user.id,
+          calendar_source: data.calendar_source || "manual",
+        })
+        .select()
+        .single()
 
       if (error) {
         handleSupabaseError(error)
@@ -47,125 +32,98 @@ export class SchedulesService {
 
       return schedule
     } catch (error) {
-      if (error instanceof ValidationError || error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
 
   /**
-   * スケジュールを取得（フィルター付き）
+   * スケジュールを取得（ユーザー別）
    */
-  static async getAll(filters: ScheduleFilters = {}): Promise<Schedule[]> {
+  static async getAll(): Promise<Schedule[]> {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
-      let query = supabase.from("schedules").select("*").eq("user_id", user.id).order("start_date", { ascending: true })
-
-      // フィルターを適用
-      if (filters.startDate) {
-        query = query.gte("start_date", filters.startDate)
-      }
-
-      if (filters.endDate) {
-        query = query.lte("start_date", filters.endDate)
-      }
-
-      if (filters.calendarSource) {
-        query = query.eq("calendar_source", filters.calendarSource)
-      }
-
-      if (filters.limit) {
-        query = query.limit(filters.limit)
-      }
-
-      if (filters.offset) {
-        query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1)
-      }
-
-      const { data, error } = await query
+      const { data: schedules, error } = await supabase
+        .from("schedules")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("date", { ascending: true })
+        .order("start_time", { ascending: true })
 
       if (error) {
         handleSupabaseError(error)
       }
 
-      return data || []
+      return schedules || []
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
 
   /**
-   * IDでスケジュールを取得
+   * 特定の日付のスケジュールを取得
    */
-  static async getById(id: string): Promise<Schedule | null> {
+  static async getByDate(date: string): Promise<Schedule[]> {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
-      const { data, error } = await supabase.from("schedules").select("*").eq("id", id).eq("user_id", user.id).single()
+      const { data: schedules, error } = await supabase
+        .from("schedules")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("date", date)
+        .order("start_time", { ascending: true })
 
       if (error) {
-        if (error.code === "PGRST116") {
-          return null
-        }
         handleSupabaseError(error)
       }
 
-      return data
+      return schedules || []
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
 
   /**
-   * 日付範囲でスケジュールを取得
+   * 期間別のスケジュールを取得
    */
   static async getByDateRange(startDate: string, endDate: string): Promise<Schedule[]> {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
-      const { data, error } = await supabase
+      const { data: schedules, error } = await supabase
         .from("schedules")
         .select("*")
         .eq("user_id", user.id)
-        .gte("start_date", startDate)
-        .lte("start_date", endDate)
-        .order("start_date", { ascending: true })
+        .gte("date", startDate)
+        .lte("date", endDate)
+        .order("date", { ascending: true })
+        .order("start_time", { ascending: true })
 
       if (error) {
         handleSupabaseError(error)
       }
 
-      return data || []
+      return schedules || []
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
@@ -177,20 +135,18 @@ export class SchedulesService {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
-        throw new DatabaseError("認証が必要です。")
-      }
 
-      // バリデーション
-      if (data.title !== undefined && !data.title?.trim()) {
-        throw new ValidationError("タイトルは必須です。", "title")
+      if (!user) {
+        throw new DatabaseError("認証が必要です。")
       }
 
       const { data: schedule, error } = await supabase
         .from("schedules")
-        .update(data)
+        .update({
+          ...data,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", id)
         .eq("user_id", user.id)
         .select()
@@ -202,9 +158,6 @@ export class SchedulesService {
 
       return schedule
     } catch (error) {
-      if (error instanceof ValidationError || error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
@@ -216,9 +169,9 @@ export class SchedulesService {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
@@ -228,99 +181,42 @@ export class SchedulesService {
         handleSupabaseError(error)
       }
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
   }
 
   /**
-   * 外部IDでスケジュールを取得
+   * 外部カレンダーからスケジュールを同期
    */
-  static async getByExternalId(externalId: string, calendarSource: string): Promise<Schedule | null> {
+  static async syncFromExternalCalendar(source: string, schedules: Omit<ScheduleInsert, "user_id">[]): Promise<void> {
     try {
       const {
         data: { user },
-        error: userError,
       } = await supabase.auth.getUser()
-      if (userError || !user) {
+
+      if (!user) {
         throw new DatabaseError("認証が必要です。")
       }
 
-      const { data, error } = await supabase
-        .from("schedules")
-        .select("*")
-        .eq("external_id", externalId)
-        .eq("calendar_source", calendarSource)
-        .eq("user_id", user.id)
-        .single()
+      // 既存の外部カレンダーのスケジュールを削除
+      await supabase.from("schedules").delete().eq("user_id", user.id).eq("calendar_source", source)
 
-      if (error) {
-        if (error.code === "PGRST116") {
-          return null
+      // 新しいスケジュールを挿入
+      if (schedules.length > 0) {
+        const schedulesWithUserId = schedules.map((schedule) => ({
+          ...schedule,
+          user_id: user.id,
+          calendar_source: source,
+        }))
+
+        const { error } = await supabase.from("schedules").insert(schedulesWithUserId)
+
+        if (error) {
+          handleSupabaseError(error)
         }
-        handleSupabaseError(error)
       }
-
-      return data
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
       handleSupabaseError(error)
     }
-  }
-
-  /**
-   * カレンダーソース別のスケジュール数を取得
-   */
-  static async getCountBySource(): Promise<Record<string, number>> {
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-      if (userError || !user) {
-        throw new DatabaseError("認証が必要です。")
-      }
-
-      const { data, error } = await supabase.from("schedules").select("calendar_source").eq("user_id", user.id)
-
-      if (error) {
-        handleSupabaseError(error)
-      }
-
-      const counts: Record<string, number> = {}
-      data?.forEach((schedule) => {
-        counts[schedule.calendar_source] = (counts[schedule.calendar_source] || 0) + 1
-      })
-
-      return counts
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error
-      }
-      handleSupabaseError(error)
-    }
-  }
-
-  /**
-   * リアルタイム変更を監視
-   */
-  static subscribeToChanges(userId: string, callback: (payload: any) => void) {
-    return supabase
-      .channel("schedules_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "schedules",
-          filter: `user_id=eq.${userId}`,
-        },
-        callback,
-      )
-      .subscribe()
   }
 }

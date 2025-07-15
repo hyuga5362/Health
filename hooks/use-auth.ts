@@ -1,15 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabase"
+import { getErrorMessage, logError } from "@/lib/errors"
 import type { User, Session } from "@supabase/supabase-js"
-import { AuthService } from "@/services/auth.service"
-import { UserSettingsService } from "@/services/user-settings.service"
 
-export interface AuthState {
+interface AuthState {
   user: User | null
   session: Session | null
   loading: boolean
-  isAuthenticated: boolean
+  error: string | null
 }
 
 export function useAuth() {
@@ -17,132 +17,269 @@ export function useAuth() {
     user: null,
     session: null,
     loading: true,
-    isAuthenticated: false,
+    error: null,
   })
 
+  // 認証状態の初期化
   useEffect(() => {
-    // 初期セッションを取得
-    const getInitialSession = async () => {
+    let mounted = true
+
+    const initAuth = async () => {
       try {
-        const session = await AuthService.getCurrentSession()
-        const user = session?.user || null
+        // 初期セッションを取得
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
 
-        setState({
-          user,
-          session,
-          loading: false,
-          isAuthenticated: !!user,
-        })
+        if (error) {
+          throw error
+        }
 
-        // ユーザーが認証されている場合、設定を初期化
-        if (user) {
-          try {
-            await UserSettingsService.get()
-          } catch (error) {
-            console.error("Failed to initialize user settings:", error)
-          }
+        if (mounted) {
+          setState({
+            user: session?.user || null,
+            session,
+            loading: false,
+            error: null,
+          })
         }
       } catch (error) {
-        console.error("Failed to get initial session:", error)
-        setState((prev) => ({ ...prev, loading: false }))
+        logError(error, "useAuth.initAuth")
+        if (mounted) {
+          setState({
+            user: null,
+            session: null,
+            loading: false,
+            error: getErrorMessage(error),
+          })
+        }
       }
     }
 
-    getInitialSession()
+    initAuth()
 
     // 認証状態の変更を監視
     const {
       data: { subscription },
-    } = AuthService.onAuthStateChange(async (event, session) => {
-      const user = session?.user || null
-
-      setState({
-        user,
-        session,
-        loading: false,
-        isAuthenticated: !!user,
-      })
-
-      // ユーザーがサインインした場合、設定を初期化
-      if (event === "SIGNED_IN" && user) {
-        try {
-          await UserSettingsService.get()
-        } catch (error) {
-          console.error("Failed to initialize user settings:", error)
-        }
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (mounted) {
+        setState((prev) => ({
+          ...prev,
+          user: session?.user || null,
+          session,
+          loading: false,
+          error: null,
+        }))
       }
     })
 
     return () => {
+      mounted = false
       subscription.unsubscribe()
     }
   }, [])
 
-  const signUp = async (email: string, password: string) => {
-    setState((prev) => ({ ...prev, loading: true }))
+  // サインアップ
+  const signUp = async (email: string, password: string, options?: { data?: { full_name?: string } }) => {
+    setState((prev) => ({ ...prev, loading: true, error: null }))
+
     try {
-      const result = await AuthService.signUp({ email, password })
-      return result
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          ...options,
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+
+      setState((prev) => ({
+        ...prev,
+        user: data.user,
+        session: data.session,
+        loading: false,
+        error: null,
+      }))
+
+      return { user: data.user, session: data.session }
     } catch (error) {
-      setState((prev) => ({ ...prev, loading: false }))
+      logError(error, "useAuth.signUp")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+      }))
       throw error
     }
   }
 
+  // サインイン
   const signIn = async (email: string, password: string) => {
-    setState((prev) => ({ ...prev, loading: true }))
+    setState((prev) => ({ ...prev, loading: true, error: null }))
+
     try {
-      const result = await AuthService.signIn({ email, password })
-      return result
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      setState((prev) => ({
+        ...prev,
+        user: data.user,
+        session: data.session,
+        loading: false,
+        error: null,
+      }))
+
+      return { user: data.user, session: data.session }
     } catch (error) {
-      setState((prev) => ({ ...prev, loading: false }))
+      logError(error, "useAuth.signIn")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+      }))
       throw error
     }
   }
 
+  // Googleサインイン
   const signInWithGoogle = async () => {
-    setState((prev) => ({ ...prev, loading: true }))
+    setState((prev) => ({ ...prev, loading: true, error: null }))
+
     try {
-      await AuthService.signInWithGoogle()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+      // OAuth の場合、リダイレクトされるので状態更新は不要
     } catch (error) {
-      setState((prev) => ({ ...prev, loading: false }))
+      logError(error, "useAuth.signInWithGoogle")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+      }))
       throw error
     }
   }
 
+  // サインアウト
   const signOut = async () => {
-    setState((prev) => ({ ...prev, loading: true }))
+    setState((prev) => ({ ...prev, loading: true, error: null }))
+
     try {
-      await AuthService.signOut()
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        throw error
+      }
+
+      setState({
+        user: null,
+        session: null,
+        loading: false,
+        error: null,
+      })
     } catch (error) {
-      setState((prev) => ({ ...prev, loading: false }))
+      logError(error, "useAuth.signOut")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+      }))
       throw error
     }
   }
 
+  // パスワードリセット
   const resetPassword = async (email: string) => {
+    setState((prev) => ({ ...prev, loading: true, error: null }))
+
     try {
-      await AuthService.resetPassword(email)
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      setState((prev) => ({ ...prev, loading: false, error: null }))
     } catch (error) {
+      logError(error, "useAuth.resetPassword")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+      }))
       throw error
     }
   }
 
+  // パスワード更新
   const updatePassword = async (newPassword: string) => {
+    setState((prev) => ({ ...prev, loading: true, error: null }))
+
     try {
-      await AuthService.updatePassword(newPassword)
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+
+      if (error) {
+        throw error
+      }
+
+      setState((prev) => ({ ...prev, loading: false, error: null }))
     } catch (error) {
+      logError(error, "useAuth.updatePassword")
+      const errorMessage = getErrorMessage(error)
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+      }))
       throw error
     }
+  }
+
+  // エラーをクリア
+  const clearError = () => {
+    setState((prev) => ({ ...prev, error: null }))
   }
 
   return {
-    ...state,
+    user: state.user,
+    session: state.session,
+    loading: state.loading,
+    error: state.error,
+    isAuthenticated: !!state.user,
     signUp,
     signIn,
     signInWithGoogle,
     signOut,
     resetPassword,
     updatePassword,
+    clearError,
   }
 }
