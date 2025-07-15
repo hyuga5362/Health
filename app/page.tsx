@@ -12,17 +12,19 @@ import { HealthStatusButtons } from "@/components/health-status-buttons"
 import { HealthCalendar } from "@/components/health-calendar"
 import { HealthStats } from "@/components/health-stats"
 import { SampleDataGenerator } from "@/components/sample-data-generator"
-import { useHealthRecords } from "@/hooks/use-health-records"
 import { useAuth } from "@/hooks/use-auth"
-import type { HealthStatus } from "@/lib/supabase"
-import { generateSampleDataToSupabase, signOut } from "@/lib/supabase"
+import { useHealthRecords } from "@/hooks/use-health-records"
+import { useUserSettings } from "@/hooks/use-user-settings"
+import type { HealthStatus } from "@/types/database"
 import Link from "next/link"
 
 export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isRecording, setIsRecording] = useState(false)
-  const { records, loading, addRecord, getRecordByDate, refetch } = useHealthRecords()
-  const { user, loading: authLoading, isAuthenticated } = useAuth()
+
+  const { user, loading: authLoading, isAuthenticated, signOut } = useAuth()
+  const { records, loading: recordsLoading, addRecord, getRecordByDate, generateSampleData } = useHealthRecords()
+  const { settings } = useUserSettings()
   const router = useRouter()
   const { toast } = useToast()
 
@@ -46,10 +48,10 @@ export default function HomePage() {
           status === "good" ? "良い" : status === "normal" ? "普通" : "悪い"
         }`,
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "エラーが発生しました",
-        description: "体調の記録に失敗しました。もう一度お試しください。",
+        description: error.message || "体調の記録に失敗しました。",
         variant: "destructive",
       })
     } finally {
@@ -59,16 +61,15 @@ export default function HomePage() {
 
   const handleGenerateSampleData = async () => {
     try {
-      await generateSampleDataToSupabase()
-      refetch()
+      await generateSampleData(30)
       toast({
         title: "サンプルデータを生成しました",
         description: "過去30日分の体調データを作成しました。",
       })
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "エラーが発生しました",
-        description: "サンプルデータの生成に失敗しました。",
+        description: error.message || "サンプルデータの生成に失敗しました。",
         variant: "destructive",
       })
     }
@@ -82,10 +83,10 @@ export default function HomePage() {
         description: "またのご利用をお待ちしております。",
       })
       router.push("/login")
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "エラーが発生しました",
-        description: "ログアウトに失敗しました。",
+        description: error.message || "ログアウトに失敗しました。",
         variant: "destructive",
       })
     }
@@ -93,7 +94,7 @@ export default function HomePage() {
 
   const selectedDateRecord = selectedDate ? getRecordByDate(format(selectedDate, "yyyy-MM-dd")) : null
 
-  if (authLoading || loading) {
+  if (authLoading || recordsLoading) {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center">
         <div className="text-center">
@@ -109,7 +110,10 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50">
+    <div
+      className="min-h-screen bg-amber-50"
+      style={{ fontSize: settings?.font_size ? `${settings.font_size}px` : "16px" }}
+    >
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-orange-100">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
@@ -140,7 +144,16 @@ export default function HomePage() {
         {user && (
           <Card className="bg-white shadow-sm">
             <CardContent className="pt-4">
-              <p className="text-sm text-gray-600 text-center">ようこそ、{user.email}さん</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">ようこそ</p>
+                  <p className="font-medium text-gray-800">{user.email}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">記録数</p>
+                  <p className="text-lg font-bold text-orange-600">{records.length}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -175,6 +188,7 @@ export default function HomePage() {
                   : selectedDateRecord.status === "normal"
                     ? "普通"
                     : "悪い"}
+                {selectedDateRecord.notes && ` - ${selectedDateRecord.notes}`}
               </p>
             )}
           </CardHeader>
@@ -212,9 +226,12 @@ export default function HomePage() {
                       <span className="text-lg">
                         {record.status === "good" ? "😊" : record.status === "normal" ? "😐" : "😷"}
                       </span>
-                      <span className="text-sm font-medium">
-                        {record.status === "good" ? "良い" : record.status === "normal" ? "普通" : "悪い"}
-                      </span>
+                      <div className="text-right">
+                        <span className="text-sm font-medium">
+                          {record.status === "good" ? "良い" : record.status === "normal" ? "普通" : "悪い"}
+                        </span>
+                        {record.notes && <p className="text-xs text-gray-500">{record.notes}</p>}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -222,6 +239,29 @@ export default function HomePage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Quick Actions */}
+        <Card className="bg-white shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-medium text-gray-800">クイックアクション</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <Link href="/stats">
+                <Button variant="outline" className="w-full h-12 flex flex-col gap-1 bg-transparent">
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="text-xs">統計を見る</span>
+                </Button>
+              </Link>
+              <Link href="/settings">
+                <Button variant="outline" className="w-full h-12 flex flex-col gap-1 bg-transparent">
+                  <Settings className="h-4 w-4" />
+                  <span className="text-xs">設定</span>
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

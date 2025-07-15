@@ -1,15 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { supabase, type UserSettings, initializeUserSettings } from "@/lib/supabase"
-import { useAuth } from "@/hooks/use-auth"
+import { useState, useEffect, useCallback } from "react"
+import { UserSettingsService } from "@/services/user-settings.service"
+import type { UserSettings, Theme } from "@/types/database"
+import { useAuth } from "./use-auth"
 
 export function useUserSettings() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { user, isAuthenticated } = useAuth()
 
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     if (!isAuthenticated || !user) {
       setSettings(null)
       setLoading(false)
@@ -17,107 +19,137 @@ export function useUserSettings() {
     }
 
     try {
-      const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user.id).single()
-
-      if (error) {
-        if (error.code === "PGRST116") {
-          // 設定が存在しない場合は初期化
-          const newSettings = await initializeUserSettings()
-          setSettings(newSettings)
-        } else {
-          throw error
-        }
-      } else {
-        setSettings(data)
-      }
-    } catch (error) {
-      console.error("Error fetching user settings:", error)
+      setLoading(true)
+      setError(null)
+      const data = await UserSettingsService.get()
+      setSettings(data)
+    } catch (err: any) {
+      setError(err.message || "設定の取得に失敗しました。")
+      setSettings(null)
     } finally {
       setLoading(false)
     }
-  }
+  }, [isAuthenticated, user])
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  // リアルタイム更新の監視
+  useEffect(() => {
+    if (!user) return
+
+    const subscription = UserSettingsService.subscribeToChanges(user.id, (payload) => {
+      console.log("User settings changed:", payload)
+      fetchSettings() // データを再取得
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [user, fetchSettings])
 
   const updateSettings = async (updates: Partial<UserSettings>) => {
-    if (!isAuthenticated || !user) {
-      throw new Error("User not authenticated")
-    }
-
     try {
-      const { data, error } = await supabase
-        .from("user_settings")
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id)
-        .select()
-        .single()
-
-      if (error) throw error
-      setSettings(data)
-      return data
-    } catch (error) {
-      console.error("Error updating user settings:", error)
-      throw error
+      const updatedSettings = await UserSettingsService.update(updates)
+      setSettings(updatedSettings)
+      return updatedSettings
+    } catch (err: any) {
+      setError(err.message || "設定の更新に失敗しました。")
+      throw err
     }
   }
 
   const updateFontSize = async (fontSize: number) => {
-    return updateSettings({ font_size: fontSize })
+    try {
+      const updatedSettings = await UserSettingsService.updateFontSize(fontSize)
+      setSettings(updatedSettings)
+      return updatedSettings
+    } catch (err: any) {
+      setError(err.message || "フォントサイズの更新に失敗しました。")
+      throw err
+    }
   }
 
   const toggleWeekStartsMonday = async () => {
-    if (!settings) return
-    return updateSettings({ week_starts_monday: !settings.week_starts_monday })
+    try {
+      const updatedSettings = await UserSettingsService.toggleWeekStartsMonday()
+      setSettings(updatedSettings)
+      return updatedSettings
+    } catch (err: any) {
+      setError(err.message || "週開始曜日の更新に失敗しました。")
+      throw err
+    }
   }
 
-  const updateTheme = async (theme: "light" | "dark" | "system") => {
-    return updateSettings({ theme })
+  const updateTheme = async (theme: Theme) => {
+    try {
+      const updatedSettings = await UserSettingsService.updateTheme(theme)
+      setSettings(updatedSettings)
+      return updatedSettings
+    } catch (err: any) {
+      setError(err.message || "テーマの更新に失敗しました。")
+      throw err
+    }
   }
 
   const toggleNotifications = async () => {
-    if (!settings) return
-    return updateSettings({ notifications_enabled: !settings.notifications_enabled })
+    try {
+      const updatedSettings = await UserSettingsService.toggleNotifications()
+      setSettings(updatedSettings)
+      return updatedSettings
+    } catch (err: any) {
+      setError(err.message || "通知設定の更新に失敗しました。")
+      throw err
+    }
   }
 
   const updateReminderTime = async (time: string) => {
-    return updateSettings({ reminder_time: time })
+    try {
+      const updatedSettings = await UserSettingsService.updateReminderTime(time)
+      setSettings(updatedSettings)
+      return updatedSettings
+    } catch (err: any) {
+      setError(err.message || "リマインダー時間の更新に失敗しました。")
+      throw err
+    }
   }
 
-  const connectGoogleCalendar = async () => {
-    // Google Calendar連携のロジックをここに実装
-    return updateSettings({ google_calendar_connected: true })
+  const updateGoogleCalendarConnection = async (connected: boolean) => {
+    try {
+      const updatedSettings = await UserSettingsService.updateGoogleCalendarConnection(connected)
+      setSettings(updatedSettings)
+      return updatedSettings
+    } catch (err: any) {
+      setError(err.message || "Google Calendar連携の更新に失敗しました。")
+      throw err
+    }
   }
 
-  const disconnectGoogleCalendar = async () => {
-    return updateSettings({ google_calendar_connected: false })
+  const updateAppleCalendarConnection = async (connected: boolean) => {
+    try {
+      const updatedSettings = await UserSettingsService.updateAppleCalendarConnection(connected)
+      setSettings(updatedSettings)
+      return updatedSettings
+    } catch (err: any) {
+      setError(err.message || "Apple Calendar連携の更新に失敗しました。")
+      throw err
+    }
   }
-
-  const connectAppleCalendar = async () => {
-    // Apple Calendar連携のロジックをここに実装
-    return updateSettings({ apple_calendar_connected: true })
-  }
-
-  const disconnectAppleCalendar = async () => {
-    return updateSettings({ apple_calendar_connected: false })
-  }
-
-  useEffect(() => {
-    fetchSettings()
-  }, [isAuthenticated, user])
 
   return {
     settings,
     loading,
+    error,
+    updateSettings,
     updateFontSize,
     toggleWeekStartsMonday,
     updateTheme,
     toggleNotifications,
     updateReminderTime,
-    connectGoogleCalendar,
-    disconnectGoogleCalendar,
-    connectAppleCalendar,
-    disconnectAppleCalendar,
+    updateGoogleCalendarConnection,
+    updateAppleCalendarConnection,
     refetch: fetchSettings,
+    clearError: () => setError(null),
   }
 }

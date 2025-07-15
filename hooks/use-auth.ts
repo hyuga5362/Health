@@ -1,26 +1,51 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import type { User } from "@supabase/supabase-js"
-import { supabase } from "@/lib/supabase"
+import type { User, Session } from "@supabase/supabase-js"
+import { AuthService } from "@/services/auth.service"
+import { UserSettingsService } from "@/services/user-settings.service"
+
+export interface AuthState {
+  user: User | null
+  session: Session | null
+  loading: boolean
+  isAuthenticated: boolean
+}
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    session: null,
+    loading: true,
+    isAuthenticated: false,
+  })
 
   useEffect(() => {
-    // 初期認証状態を取得
+    // 初期セッションを取得
     const getInitialSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      try {
+        const session = await AuthService.getCurrentSession()
+        const user = session?.user || null
 
-      if (session?.user) {
-        setUser(session.user)
-        setIsAuthenticated(true)
+        setState({
+          user,
+          session,
+          loading: false,
+          isAuthenticated: !!user,
+        })
+
+        // ユーザーが認証されている場合、設定を初期化
+        if (user) {
+          try {
+            await UserSettingsService.get()
+          } catch (error) {
+            console.error("Failed to initialize user settings:", error)
+          }
+        }
+      } catch (error) {
+        console.error("Failed to get initial session:", error)
+        setState((prev) => ({ ...prev, loading: false }))
       }
-      setLoading(false)
     }
 
     getInitialSession()
@@ -28,23 +53,96 @@ export function useAuth() {
     // 認証状態の変更を監視
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user)
-        setIsAuthenticated(true)
-      } else {
-        setUser(null)
-        setIsAuthenticated(false)
+    } = AuthService.onAuthStateChange(async (event, session) => {
+      const user = session?.user || null
+
+      setState({
+        user,
+        session,
+        loading: false,
+        isAuthenticated: !!user,
+      })
+
+      // ユーザーがサインインした場合、設定を初期化
+      if (event === "SIGNED_IN" && user) {
+        try {
+          await UserSettingsService.get()
+        } catch (error) {
+          console.error("Failed to initialize user settings:", error)
+        }
       }
-      setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
+  const signUp = async (email: string, password: string) => {
+    setState((prev) => ({ ...prev, loading: true }))
+    try {
+      const result = await AuthService.signUp({ email, password })
+      return result
+    } catch (error) {
+      setState((prev) => ({ ...prev, loading: false }))
+      throw error
+    }
+  }
+
+  const signIn = async (email: string, password: string) => {
+    setState((prev) => ({ ...prev, loading: true }))
+    try {
+      const result = await AuthService.signIn({ email, password })
+      return result
+    } catch (error) {
+      setState((prev) => ({ ...prev, loading: false }))
+      throw error
+    }
+  }
+
+  const signInWithGoogle = async () => {
+    setState((prev) => ({ ...prev, loading: true }))
+    try {
+      await AuthService.signInWithGoogle()
+    } catch (error) {
+      setState((prev) => ({ ...prev, loading: false }))
+      throw error
+    }
+  }
+
+  const signOut = async () => {
+    setState((prev) => ({ ...prev, loading: true }))
+    try {
+      await AuthService.signOut()
+    } catch (error) {
+      setState((prev) => ({ ...prev, loading: false }))
+      throw error
+    }
+  }
+
+  const resetPassword = async (email: string) => {
+    try {
+      await AuthService.resetPassword(email)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      await AuthService.updatePassword(newPassword)
+    } catch (error) {
+      throw error
+    }
+  }
+
   return {
-    user,
-    loading,
-    isAuthenticated,
+    ...state,
+    signUp,
+    signIn,
+    signInWithGoogle,
+    signOut,
+    resetPassword,
+    updatePassword,
   }
 }
