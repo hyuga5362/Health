@@ -1,19 +1,4 @@
-import type { HealthStatus, Theme } from "@/types/database"
-
 // カスタムエラークラス
-export class AppError extends Error {
-  public readonly code: string
-  public readonly statusCode: number
-
-  constructor(message: string, code = "UNKNOWN_ERROR", statusCode = 500) {
-    super(message)
-    this.name = this.constructor.name
-    this.code = code
-    this.statusCode = statusCode
-    Error.captureStackTrace(this, this.constructor)
-  }
-}
-
 export class AuthError extends Error {
   constructor(
     message: string,
@@ -41,62 +26,8 @@ export class ValidationError extends Error {
   ) {
     super(message)
     this.name = "ValidationError"
+    this.field = field
   }
-}
-
-export class NotFoundError extends AppError {
-  constructor(message = "リソースが見つかりません", code = "NOT_FOUND") {
-    super(message, code, 404)
-  }
-}
-
-// Supabaseエラーハンドリング
-export function handleSupabaseError(error: any): never {
-  if (!error) {
-    throw new Error("Unknown error occurred")
-  }
-
-  // Supabase Auth Error
-  if (error.message && typeof error.message === "string") {
-    const message = error.message.toLowerCase()
-
-    if (message.includes("invalid login credentials")) {
-      throw new AuthError("メールアドレスまたはパスワードが正しくありません。")
-    }
-
-    if (message.includes("email not confirmed")) {
-      throw new AuthError("メールアドレスの確認が完了していません。メールをご確認ください。")
-    }
-
-    if (message.includes("user already registered")) {
-      throw new AuthError("このメールアドレスは既に登録されています。")
-    }
-
-    if (message.includes("password should be at least")) {
-      throw new AuthError("パスワードは6文字以上で入力してください。")
-    }
-
-    if (message.includes("auth session missing")) {
-      throw new AuthError("認証セッションが見つかりません。再度ログインしてください。")
-    }
-  }
-
-  // PostgreSQL Error
-  if (error.code) {
-    switch (error.code) {
-      case "23505":
-        throw new DatabaseError("データが既に存在します。")
-      case "23503":
-        throw new DatabaseError("関連するデータが見つかりません。")
-      case "42501":
-        throw new DatabaseError("このデータにアクセスする権限がありません。")
-      default:
-        throw new DatabaseError(`データベースエラーが発生しました。(${error.code})`)
-    }
-  }
-
-  // Generic error
-  throw new Error(error.message || "予期しないエラーが発生しました。")
 }
 
 // バリデーション関数
@@ -109,24 +40,58 @@ export function validatePassword(password: string): { isValid: boolean; message?
   if (!password) {
     return { isValid: false, message: "パスワードを入力してください。" }
   }
-
   if (password.length < 6) {
     return { isValid: false, message: "パスワードは6文字以上で入力してください。" }
   }
-
   return { isValid: true }
 }
 
-export function validateHealthStatus(status: string): status is HealthStatus {
+export function validateHealthStatus(status: string): boolean {
   return ["good", "normal", "bad"].includes(status)
 }
 
-export function validateTheme(theme: string): theme is Theme {
+export function validateTheme(theme: string): boolean {
   return ["light", "dark", "system"].includes(theme)
 }
 
-// エラーメッセージの日本語化
+// Supabaseエラーハンドリング
+export function handleSupabaseError(error: any): never {
+  console.error("Supabase Error:", error)
+
+  if (error?.code) {
+    switch (error.code) {
+      case "auth_session_missing":
+        throw new AuthError("認証セッションが見つかりません。再度ログインしてください。", error.code)
+      case "invalid_credentials":
+        throw new AuthError("メールアドレスまたはパスワードが正しくありません。", error.code)
+      case "email_not_confirmed":
+        throw new AuthError("メールアドレスの確認が完了していません。", error.code)
+      case "signup_disabled":
+        throw new AuthError("新規登録は現在無効になっています。", error.code)
+      case "email_address_invalid":
+        throw new AuthError("有効なメールアドレスを入力してください。", error.code)
+      case "password_too_short":
+        throw new AuthError("パスワードは6文字以上で入力してください。", error.code)
+      case "PGRST116":
+        throw new DatabaseError("データが見つかりません。", error.code)
+      case "23505":
+        throw new DatabaseError("データが既に存在します。", error.code)
+      case "23503":
+        throw new DatabaseError("関連するデータが見つかりません。", error.code)
+      default:
+        throw new DatabaseError(error.message || "データベースエラーが発生しました。", error.code)
+    }
+  }
+
+  throw new DatabaseError(error.message || "予期しないエラーが発生しました。")
+}
+
+// エラーメッセージを取得
 export function getErrorMessage(error: unknown): string {
+  if (error instanceof AuthError || error instanceof DatabaseError || error instanceof ValidationError) {
+    return error.message
+  }
+
   if (error instanceof Error) {
     return error.message
   }
@@ -138,15 +103,15 @@ export function getErrorMessage(error: unknown): string {
   return "予期しないエラーが発生しました。"
 }
 
-// エラーログ出力
+// ログ出力
 export function logError(error: unknown, context?: string): void {
-  const errorMessage = getErrorMessage(error)
   const timestamp = new Date().toISOString()
+  const contextStr = context ? `[${context}] ` : ""
 
-  console.error(`${timestamp} ${context ? `[${context}]` : ""} ${errorMessage}`)
+  console.error(`${timestamp} ${contextStr}Error:`, error)
 
-  // 本番環境では外部ログサービスに送信
+  // 本番環境では外部ログサービスに送信することも可能
   if (process.env.NODE_ENV === "production") {
-    // TODO: Send to external logging service
+    // 例: Sentry, LogRocket, etc.
   }
 }

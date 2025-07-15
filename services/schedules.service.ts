@@ -10,28 +10,41 @@ export class SchedulesService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
 
-      const { data: schedule, error } = await supabase
-        .from("schedules")
-        .insert({
-          ...data,
-          user_id: user.id,
-          calendar_source: data.calendar_source || "manual",
-        })
-        .select()
-        .single()
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Creating schedule for user:", user.id, "data:", data)
+
+      const insertData: ScheduleInsert = {
+        ...data,
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      const { data: schedule, error } = await supabase.from("schedules").insert(insertData).select().single()
 
       if (error) {
+        console.error("Database insert error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("Schedule created successfully:", schedule)
       return schedule
     } catch (error) {
+      console.error("SchedulesService.create error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -43,25 +56,38 @@ export class SchedulesService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Fetching schedules for user:", user.id)
 
       const { data: schedules, error } = await supabase
         .from("schedules")
         .select("*")
         .eq("user_id", user.id)
         .order("date", { ascending: true })
-        .order("start_time", { ascending: true })
 
       if (error) {
+        console.error("Database select error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("Schedules fetched successfully:", schedules?.length || 0, "schedules")
       return schedules || []
     } catch (error) {
+      console.error("SchedulesService.getAll error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -73,11 +99,19 @@ export class SchedulesService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Fetching schedules for user:", user.id, "date:", date)
 
       const { data: schedules, error } = await supabase
         .from("schedules")
@@ -87,43 +121,17 @@ export class SchedulesService {
         .order("start_time", { ascending: true })
 
       if (error) {
+        console.error("Database select error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("Schedules fetched for date:", schedules?.length || 0, "schedules")
       return schedules || []
     } catch (error) {
-      handleSupabaseError(error)
-    }
-  }
-
-  /**
-   * 期間別のスケジュールを取得
-   */
-  static async getByDateRange(startDate: string, endDate: string): Promise<Schedule[]> {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      console.error("SchedulesService.getByDate error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
       }
-
-      const { data: schedules, error } = await supabase
-        .from("schedules")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("date", startDate)
-        .lte("date", endDate)
-        .order("date", { ascending: true })
-        .order("start_time", { ascending: true })
-
-      if (error) {
-        handleSupabaseError(error)
-      }
-
-      return schedules || []
-    } catch (error) {
       handleSupabaseError(error)
     }
   }
@@ -135,29 +143,45 @@ export class SchedulesService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
+      }
+
       if (!user) {
-        throw new DatabaseError("認証が必要です。")
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Updating schedule:", id, "for user:", user.id, "data:", data)
+
+      const updateData: ScheduleUpdate = {
+        ...data,
+        updated_at: new Date().toISOString(),
       }
 
       const { data: schedule, error } = await supabase
         .from("schedules")
-        .update({
-          ...data,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", id)
         .eq("user_id", user.id)
         .select()
         .single()
 
       if (error) {
+        console.error("Database update error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("Schedule updated successfully:", schedule)
       return schedule
     } catch (error) {
+      console.error("SchedulesService.update error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -169,53 +193,33 @@ export class SchedulesService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Deleting schedule:", id, "for user:", user.id)
 
       const { error } = await supabase.from("schedules").delete().eq("id", id).eq("user_id", user.id)
 
       if (error) {
+        console.error("Database delete error:", error)
         handleSupabaseError(error)
       }
+
+      console.log("Schedule deleted successfully")
     } catch (error) {
-      handleSupabaseError(error)
-    }
-  }
-
-  /**
-   * 外部カレンダーからスケジュールを同期
-   */
-  static async syncFromExternalCalendar(source: string, schedules: Omit<ScheduleInsert, "user_id">[]): Promise<void> {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      console.error("SchedulesService.delete error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
       }
-
-      // 既存の外部カレンダーのスケジュールを削除
-      await supabase.from("schedules").delete().eq("user_id", user.id).eq("calendar_source", source)
-
-      // 新しいスケジュールを挿入
-      if (schedules.length > 0) {
-        const schedulesWithUserId = schedules.map((schedule) => ({
-          ...schedule,
-          user_id: user.id,
-          calendar_source: source,
-        }))
-
-        const { error } = await supabase.from("schedules").insert(schedulesWithUserId)
-
-        if (error) {
-          handleSupabaseError(error)
-        }
-      }
-    } catch (error) {
       handleSupabaseError(error)
     }
   }

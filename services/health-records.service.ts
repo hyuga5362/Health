@@ -10,27 +10,41 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
 
-      const { data: record, error } = await supabase
-        .from("health_records")
-        .insert({
-          ...data,
-          user_id: user.id,
-        })
-        .select()
-        .single()
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Creating health record for user:", user.id, "data:", data)
+
+      const insertData: HealthRecordInsert = {
+        ...data,
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      const { data: record, error } = await supabase.from("health_records").insert(insertData).select().single()
 
       if (error) {
+        console.error("Database insert error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("Health record created successfully:", record)
       return record
     } catch (error) {
+      console.error("HealthRecordsService.create error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -42,11 +56,19 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Fetching health records for user:", user.id)
 
       const { data: records, error } = await supabase
         .from("health_records")
@@ -55,11 +77,17 @@ export class HealthRecordsService {
         .order("date", { ascending: false })
 
       if (error) {
+        console.error("Database select error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("Health records fetched successfully:", records?.length || 0, "records")
       return records || []
     } catch (error) {
+      console.error("HealthRecordsService.getAll error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -71,25 +99,39 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Fetching health record for user:", user.id, "date:", date)
 
       const { data: record, error } = await supabase
         .from("health_records")
         .select("*")
         .eq("user_id", user.id)
         .eq("date", date)
-        .single()
+        .maybeSingle()
 
-      if (error && error.code !== "PGRST116") {
+      if (error) {
+        console.error("Database select error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("Health record fetched:", record ? "found" : "not found")
       return record || null
     } catch (error) {
+      console.error("HealthRecordsService.getByDate error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -101,29 +143,45 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
+      }
+
       if (!user) {
-        throw new DatabaseError("認証が必要です。")
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Updating health record:", id, "for user:", user.id, "data:", data)
+
+      const updateData: HealthRecordUpdate = {
+        ...data,
+        updated_at: new Date().toISOString(),
       }
 
       const { data: record, error } = await supabase
         .from("health_records")
-        .update({
-          ...data,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", id)
         .eq("user_id", user.id)
         .select()
         .single()
 
       if (error) {
+        console.error("Database update error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("Health record updated successfully:", record)
       return record
     } catch (error) {
+      console.error("HealthRecordsService.update error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -135,35 +193,50 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
+      }
+
       if (!user) {
-        throw new DatabaseError("認証が必要です。")
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Upserting health record for user:", user.id, "date:", date, "status:", status)
+
+      const upsertData: HealthRecordInsert = {
+        user_id: user.id,
+        date,
+        status,
+        notes: notes || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
 
       const { data: record, error } = await supabase
         .from("health_records")
-        .upsert(
-          {
-            user_id: user.id,
-            date,
-            status,
-            notes,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "user_id,date",
-          },
-        )
+        .upsert(upsertData, {
+          onConflict: "user_id,date",
+          ignoreDuplicates: false,
+        })
         .select()
         .single()
 
       if (error) {
+        console.error("Database upsert error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("Health record upserted successfully:", record)
       return record
     } catch (error) {
+      console.error("HealthRecordsService.upsertByDate error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -175,18 +248,33 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Deleting health record:", id, "for user:", user.id)
 
       const { error } = await supabase.from("health_records").delete().eq("id", id).eq("user_id", user.id)
 
       if (error) {
+        console.error("Database delete error:", error)
         handleSupabaseError(error)
       }
+
+      console.log("Health record deleted successfully")
     } catch (error) {
+      console.error("HealthRecordsService.delete error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -198,11 +286,19 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Fetching statistics for user:", user.id, "period:", startDate, "to", endDate)
 
       let query = supabase.from("health_records").select("*").eq("user_id", user.id)
 
@@ -216,6 +312,7 @@ export class HealthRecordsService {
       const { data: records, error } = await query.order("date", { ascending: false })
 
       if (error) {
+        console.error("Database select error:", error)
         handleSupabaseError(error)
       }
 
@@ -224,7 +321,7 @@ export class HealthRecordsService {
       const normal = records?.filter((r) => r.status === "normal").length || 0
       const bad = records?.filter((r) => r.status === "bad").length || 0
 
-      return {
+      const stats = {
         total,
         good,
         normal,
@@ -234,7 +331,14 @@ export class HealthRecordsService {
         badPercentage: total > 0 ? Math.round((bad / total) * 100) : 0,
         records: records || [],
       }
+
+      console.log("Statistics calculated:", stats)
+      return stats
     } catch (error) {
+      console.error("HealthRecordsService.getStatistics error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -246,11 +350,19 @@ export class HealthRecordsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Generating sample data for user:", user.id, "days:", days)
 
       const today = new Date()
       const sampleRecords: HealthRecordInsert[] = []
@@ -270,27 +382,35 @@ export class HealthRecordsService {
         const notes =
           Math.random() < 0.2
             ? ["よく眠れた", "運動した", "疲れ気味", "ストレス多め", "体調良好"][Math.floor(Math.random() * 5)]
-            : undefined
+            : null
 
         sampleRecords.push({
           user_id: user.id,
           date: date.toISOString().split("T")[0],
           status,
           notes,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
       }
 
       const { data: records, error } = await supabase
         .from("health_records")
-        .upsert(sampleRecords, { onConflict: "user_id,date" })
+        .upsert(sampleRecords, { onConflict: "user_id,date", ignoreDuplicates: false })
         .select()
 
       if (error) {
+        console.error("Database upsert error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("Sample data generated successfully:", records?.length || 0, "records")
       return records || []
     } catch (error) {
+      console.error("HealthRecordsService.generateSampleData error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }

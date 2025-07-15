@@ -16,31 +16,51 @@ import {
 import { ja } from "date-fns/locale"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { HealthRecord } from "@/lib/supabase"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import type { HealthRecord, HealthStatus } from "@/types/database"
 
 interface HealthCalendarProps {
-  healthRecords: HealthRecord[]
-  selectedDate: Date
-  onDateSelect: (date: Date) => void
+  healthRecords?: HealthRecord[]
+  selectedDate?: Date
+  onDateSelect?: (date: Date) => void
+  onStatusChange?: (date: string, status: HealthStatus) => void
+  weekStartsMonday?: boolean
 }
 
-export function HealthCalendar({ healthRecords, selectedDate, onDateSelect }: HealthCalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(selectedDate)
+export function HealthCalendar({
+  healthRecords = [],
+  selectedDate,
+  onDateSelect,
+  onStatusChange,
+  weekStartsMonday = false,
+}: HealthCalendarProps) {
+  const [currentMonth, setCurrentMonth] = useState(new Date())
 
+  // 月の開始日と終了日を取得
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 0 }) // 日曜日から開始
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 })
 
-  const days = eachDayOfInterval({ start: startDate, end: endDate })
+  // カレンダーに表示する日付の範囲を取得（前月・翌月の日付も含む）
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: weekStartsMonday ? 1 : 0 })
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: weekStartsMonday ? 1 : 0 })
 
-  const getHealthStatus = (date: Date) => {
+  // カレンダーに表示するすべての日付を取得
+  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+
+  // 曜日のヘッダー
+  const weekDays = weekStartsMonday
+    ? ["月", "火", "水", "木", "金", "土", "日"]
+    : ["日", "月", "火", "水", "木", "金", "土"]
+
+  // 特定の日付の体調記録を取得
+  const getHealthRecord = (date: Date): HealthRecord | undefined => {
     const dateString = format(date, "yyyy-MM-dd")
-    const record = healthRecords.find((record) => record.date === dateString)
-    return record?.status
+    return healthRecords.find((record) => record.date === dateString)
   }
 
-  const getStatusColor = (status?: string) => {
+  // 体調ステータスに応じた色を取得
+  const getStatusColor = (status: HealthStatus): string => {
     switch (status) {
       case "good":
         return "bg-green-100 text-green-800 border-green-200"
@@ -49,11 +69,12 @@ export function HealthCalendar({ healthRecords, selectedDate, onDateSelect }: He
       case "bad":
         return "bg-red-100 text-red-800 border-red-200"
       default:
-        return "bg-gray-50 text-gray-600 border-gray-200"
+        return "bg-gray-100 text-gray-800 border-gray-200"
     }
   }
 
-  const getStatusEmoji = (status?: string) => {
+  // 体調ステータスに応じた絵文字を取得
+  const getStatusEmoji = (status: HealthStatus): string => {
     switch (status) {
       case "good":
         return "😊"
@@ -66,79 +87,114 @@ export function HealthCalendar({ healthRecords, selectedDate, onDateSelect }: He
     }
   }
 
-  const previousMonth = () => {
+  // 日付クリック時の処理
+  const handleDateClick = (date: Date) => {
+    if (onDateSelect) {
+      onDateSelect(date)
+    }
+  }
+
+  // 前月に移動
+  const goToPreviousMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1))
   }
 
-  const nextMonth = () => {
+  // 次月に移動
+  const goToNextMonth = () => {
     setCurrentMonth(addMonths(currentMonth, 1))
   }
 
   return (
-    <div className="space-y-4">
-      {/* カレンダーヘッダー */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={previousMonth}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <h2 className="text-lg font-semibold">{format(currentMonth, "yyyy年M月", { locale: ja })}</h2>
-        <Button variant="ghost" size="sm" onClick={nextMonth}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* 曜日ヘッダー */}
-      <div className="grid grid-cols-7 gap-1 text-center text-sm font-medium text-gray-500">
-        {["日", "月", "火", "水", "木", "金", "土"].map((day) => (
-          <div key={day} className="p-2">
-            {day}
+    <Card className="w-full">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold">{format(currentMonth, "yyyy年M月", { locale: ja })}</CardTitle>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" onClick={goToPreviousMonth} className="h-8 w-8 p-0 bg-transparent">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={goToNextMonth} className="h-8 w-8 p-0 bg-transparent">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-        ))}
-      </div>
-
-      {/* カレンダーグリッド */}
-      <div className="grid grid-cols-7 gap-1">
-        {days.map((day) => {
-          const status = getHealthStatus(day)
-          const isSelected = isSameDay(day, selectedDate)
-          const isCurrentMonth = isSameMonth(day, currentMonth)
-
-          return (
-            <button
-              key={day.toString()}
-              onClick={() => onDateSelect(day)}
-              className={`
-                relative h-12 p-1 text-sm border rounded-lg transition-colors
-                ${isSelected ? "ring-2 ring-orange-500 ring-offset-1" : ""}
-                ${isCurrentMonth ? getStatusColor(status) : "bg-gray-50 text-gray-400 border-gray-100"}
-                ${isCurrentMonth ? "hover:opacity-80" : ""}
-              `}
-              disabled={!isCurrentMonth}
-            >
-              <div className="flex flex-col items-center justify-center h-full">
-                <span className={`text-xs ${isCurrentMonth ? "" : "text-gray-400"}`}>{format(day, "d")}</span>
-                {status && isCurrentMonth && <span className="text-xs">{getStatusEmoji(status)}</span>}
-              </div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* 凡例 */}
-      <div className="flex justify-center gap-4 text-xs">
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>
-          <span className="text-gray-600">良い</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded"></div>
-          <span className="text-gray-600">普通</span>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-7 gap-1">
+          {/* 曜日ヘッダー */}
+          {weekDays.map((day) => (
+            <div key={day} className="h-8 flex items-center justify-center text-sm font-medium text-gray-500">
+              {day}
+            </div>
+          ))}
+
+          {/* カレンダーの日付 */}
+          {calendarDays.map((date) => {
+            const healthRecord = getHealthRecord(date)
+            const isCurrentMonth = isSameMonth(date, currentMonth)
+            const isSelected = selectedDate && isSameDay(date, selectedDate)
+            const isToday = isSameDay(date, new Date())
+
+            return (
+              <button
+                key={date.toISOString()}
+                onClick={() => handleDateClick(date)}
+                className={`
+                  h-12 flex flex-col items-center justify-center text-sm rounded-md transition-colors
+                  ${isCurrentMonth ? "text-gray-900" : "text-gray-400"}
+                  ${isSelected ? "ring-2 ring-blue-500 bg-blue-50" : ""}
+                  ${isToday ? "bg-blue-100 font-semibold" : ""}
+                  ${!isSelected && !isToday ? "hover:bg-gray-100" : ""}
+                  ${healthRecord ? getStatusColor(healthRecord.status) : ""}
+                `}
+              >
+                <span className="text-xs">{format(date, "d")}</span>
+                {healthRecord && <span className="text-xs leading-none">{getStatusEmoji(healthRecord.status)}</span>}
+              </button>
+            )
+          })}
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div>
-          <span className="text-gray-600">悪い</span>
+
+        {/* 凡例 */}
+        <div className="mt-4 flex flex-wrap gap-2 justify-center">
+          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+            😊 良好
+          </Badge>
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+            😐 普通
+          </Badge>
+          <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
+            😷 不調
+          </Badge>
         </div>
-      </div>
-    </div>
+
+        {/* 選択された日付の情報 */}
+        {selectedDate && (
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+            <h4 className="font-medium text-sm text-gray-900 mb-2">
+              {format(selectedDate, "M月d日(E)", { locale: ja })}
+            </h4>
+            {(() => {
+              const record = getHealthRecord(selectedDate)
+              if (record) {
+                return (
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span>{getStatusEmoji(record.status)}</span>
+                      <span className="text-sm">
+                        {record.status === "good" ? "良好" : record.status === "normal" ? "普通" : "不調"}
+                      </span>
+                    </div>
+                    {record.notes && <p className="text-sm text-gray-600">{record.notes}</p>}
+                  </div>
+                )
+              } else {
+                return <p className="text-sm text-gray-500">記録がありません</p>
+              }
+            })()}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

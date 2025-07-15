@@ -10,33 +10,39 @@ export class UserSettingsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
 
-      const { data, error } = await supabase
-        .from("user_settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Fetching user settings for user:", user.id)
 
       // 既存の設定を取得
       const { data: existingSettings, error: fetchError } = await supabase
         .from("user_settings")
         .select("*")
         .eq("user_id", user.id)
-        .single()
+        .maybeSingle()
 
-      if (fetchError && fetchError.code !== "PGRST116") {
+      if (fetchError) {
+        console.error("Database select error:", fetchError)
         handleSupabaseError(fetchError)
       }
 
       // 設定が存在する場合は返す
       if (existingSettings) {
+        console.log("User settings found:", existingSettings)
         return existingSettings
       }
+
+      console.log("User settings not found, creating default settings")
 
       // 設定が存在しない場合は初期設定を作成
       const defaultSettings: UserSettingsInsert = {
@@ -48,6 +54,8 @@ export class UserSettingsService {
         theme: "light",
         notifications_enabled: true,
         reminder_time: "09:00:00",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
 
       const { data: newSettings, error: createError } = await supabase
@@ -57,11 +65,17 @@ export class UserSettingsService {
         .single()
 
       if (createError) {
+        console.error("Database insert error:", createError)
         handleSupabaseError(createError)
       }
 
+      console.log("Default user settings created:", newSettings)
       return newSettings
     } catch (error) {
+      console.error("UserSettingsService.get error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -73,28 +87,44 @@ export class UserSettingsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
+      }
+
       if (!user) {
-        throw new DatabaseError("認証が必要です。")
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Updating user settings for user:", user.id, "data:", data)
+
+      const updateData: Partial<UserSettingsUpdate> = {
+        ...data,
+        updated_at: new Date().toISOString(),
       }
 
       const { data: settings, error } = await supabase
         .from("user_settings")
-        .update({
-          ...data,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("user_id", user.id)
         .select()
         .single()
 
       if (error) {
+        console.error("Database update error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("User settings updated successfully:", settings)
       return settings
     } catch (error) {
+      console.error("UserSettingsService.update error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
@@ -163,11 +193,19 @@ export class UserSettingsService {
     try {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        throw new DatabaseError("認証が必要です。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
       }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Resetting user settings for user:", user.id)
 
       const defaultSettings: Partial<UserSettingsUpdate> = {
         font_size: 16,
@@ -188,11 +226,17 @@ export class UserSettingsService {
         .single()
 
       if (error) {
+        console.error("Database update error:", error)
         handleSupabaseError(error)
       }
 
+      console.log("User settings reset successfully:", settings)
       return settings
     } catch (error) {
+      console.error("UserSettingsService.reset error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
       handleSupabaseError(error)
     }
   }
