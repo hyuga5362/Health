@@ -5,6 +5,8 @@ import {
   format,
   startOfMonth,
   endOfMonth,
+  startOfWeek,
+  endOfWeek,
   eachDayOfInterval,
   isSameMonth,
   isSameDay,
@@ -27,7 +29,10 @@ export function HealthCalendar({ healthRecords, selectedDate, onDateSelect }: He
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
+  const startDate = startOfWeek(monthStart, { weekStartsOn: 0 }) // 日曜日から開始
+  const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 })
+
+  const days = eachDayOfInterval({ start: startDate, end: endDate })
 
   const getHealthStatus = (date: Date) => {
     const dateString = format(date, "yyyy-MM-dd")
