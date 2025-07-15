@@ -10,4 +10,3 @@ export function safeDate(input?: string | null): Date | null {
   const d = new Date(input);
   return isNaN(d.getTime()) ? null : d;
 }
-
