@@ -10,10 +10,7 @@ export class AuthError extends Error {
 }
 
 export class DatabaseError extends Error {
-  constructor(
-    message: string,
-    public code?: string,
-  ) {
+  constructor(message: string) {
     super(message)
     this.name = "DatabaseError"
   }
@@ -56,34 +53,49 @@ export function validateTheme(theme: string): boolean {
 
 // Supabaseエラーハンドリング
 export function handleSupabaseError(error: any): never {
-  console.error("Supabase Error:", error)
+  console.error("Supabase error:", error)
 
-  if (error?.code) {
-    switch (error.code) {
-      case "auth_session_missing":
-        throw new AuthError("認証セッションが見つかりません。再度ログインしてください。", error.code)
-      case "invalid_credentials":
-        throw new AuthError("メールアドレスまたはパスワードが正しくありません。", error.code)
-      case "email_not_confirmed":
-        throw new AuthError("メールアドレスの確認が完了していません。", error.code)
-      case "signup_disabled":
-        throw new AuthError("新規登録は現在無効になっています。", error.code)
-      case "email_address_invalid":
-        throw new AuthError("有効なメールアドレスを入力してください。", error.code)
-      case "password_too_short":
-        throw new AuthError("パスワードは6文字以上で入力してください。", error.code)
-      case "PGRST116":
-        throw new DatabaseError("データが見つかりません。", error.code)
-      case "23505":
-        throw new DatabaseError("データが既に存在します。", error.code)
-      case "23503":
-        throw new DatabaseError("関連するデータが見つかりません。", error.code)
-      default:
-        throw new DatabaseError(error.message || "データベースエラーが発生しました。", error.code)
-    }
+  if (error?.code === "auth_session_missing") {
+    throw new AuthError("認証セッションが見つかりません。再度ログインしてください。", error.code)
   }
 
-  throw new DatabaseError(error.message || "予期しないエラーが発生しました。")
+  if (error?.code === "invalid_credentials") {
+    throw new AuthError("メールアドレスまたはパスワードが正しくありません。", error.code)
+  }
+
+  if (error?.code === "email_not_confirmed") {
+    throw new AuthError("メールアドレスの確認が完了していません。", error.code)
+  }
+
+  if (error?.code === "signup_disabled") {
+    throw new AuthError("新規登録は現在無効になっています。", error.code)
+  }
+
+  if (error?.code === "email_address_invalid") {
+    throw new AuthError("有効なメールアドレスを入力してください。", error.code)
+  }
+
+  if (error?.code === "password_too_short") {
+    throw new AuthError("パスワードは6文字以上で入力してください。", error.code)
+  }
+
+  if (error?.code === "PGRST116") {
+    throw new DatabaseError("データが見つかりませんでした。")
+  }
+
+  if (error?.code === "23505") {
+    throw new DatabaseError("データが既に存在します。")
+  }
+
+  if (error?.code === "42501") {
+    throw new DatabaseError("データベースへのアクセス権限がありません。")
+  }
+
+  if (error?.message) {
+    throw new DatabaseError(`データベースエラー: ${error.message}`)
+  }
+
+  throw new DatabaseError("予期しないエラーが発生しました。")
 }
 
 // エラーメッセージを取得

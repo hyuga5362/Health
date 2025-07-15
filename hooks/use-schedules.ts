@@ -2,54 +2,64 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { SchedulesService } from "@/services/schedules.service"
-import { DatabaseError } from "@/lib/errors"
-import { useAuth } from "./use-auth"
 import type { Schedule, ScheduleInsert, ScheduleUpdate } from "@/types/database"
 
-interface SchedulesState {
-  schedules: Schedule[]
-  loading: boolean
-  error: string | null
-}
-
 export function useSchedules() {
-  const { isAuthenticated, user } = useAuth()
-  const [state, setState] = useState<SchedulesState>({
-    schedules: [],
-    loading: false,
-    error: null,
-  })
+  const [schedules, setSchedules] = useState<Schedule[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // 全てのスケジュールを取得
+  // スケジュール一覧を取得
   const fetchSchedules = useCallback(async () => {
-    if (!isAuthenticated) return
-
-    setState((prev) => ({ ...prev, loading: true, error: null }))
-
     try {
-      const schedules = await SchedulesService.getAll()
-      setState((prev) => ({ ...prev, schedules, loading: false }))
+      setLoading(true)
+      setError(null)
+      const data = await SchedulesService.getAll()
+      setSchedules(data)
     } catch (err) {
-      const errorMessage = err instanceof DatabaseError ? err.message : "スケジュールの取得に失敗しました"
-      setState((prev) => ({ ...prev, error: errorMessage, loading: false }))
+      console.error("Failed to fetch schedules:", err)
+      setError(err instanceof Error ? err.message : "スケジュールの取得に失敗しました")
+    } finally {
+      setLoading(false)
     }
-  }, [isAuthenticated])
+  }, [])
+
+  // 特定の日付のスケジュールを取得
+  const getSchedulesByDate = useCallback(async (date: string) => {
+    try {
+      setError(null)
+      const data = await SchedulesService.getByDate(date)
+      return data
+    } catch (err) {
+      console.error("Failed to fetch schedules by date:", err)
+      setError(err instanceof Error ? err.message : "スケジュールの取得に失敗しました")
+      return []
+    }
+  }, [])
+
+  // 期間内のスケジュールを取得
+  const getSchedulesByDateRange = useCallback(async (startDate: string, endDate: string) => {
+    try {
+      setError(null)
+      const data = await SchedulesService.getByDateRange(startDate, endDate)
+      return data
+    } catch (err) {
+      console.error("Failed to fetch schedules by date range:", err)
+      setError(err instanceof Error ? err.message : "スケジュールの取得に失敗しました")
+      return []
+    }
+  }, [])
 
   // スケジュールを作成
   const createSchedule = useCallback(async (data: Omit<ScheduleInsert, "user_id">) => {
     try {
-      setState((prev) => ({ ...prev, error: null }))
+      setError(null)
       const newSchedule = await SchedulesService.create(data)
-      setState((prev) => ({
-        ...prev,
-        schedules: [...prev.schedules, newSchedule].sort(
-          (a, b) => new Date(a.date || "").getTime() - new Date(b.date || "").getTime(),
-        ),
-      }))
+      setSchedules((prev) => [...prev, newSchedule])
       return newSchedule
     } catch (err) {
-      const errorMessage = err instanceof DatabaseError ? err.message : "スケジュールの作成に失敗しました"
-      setState((prev) => ({ ...prev, error: errorMessage }))
+      console.error("Failed to create schedule:", err)
+      setError(err instanceof Error ? err.message : "スケジュールの作成に失敗しました")
       throw err
     }
   }, [])
@@ -57,16 +67,13 @@ export function useSchedules() {
   // スケジュールを更新
   const updateSchedule = useCallback(async (id: string, data: ScheduleUpdate) => {
     try {
-      setState((prev) => ({ ...prev, error: null }))
+      setError(null)
       const updatedSchedule = await SchedulesService.update(id, data)
-      setState((prev) => ({
-        ...prev,
-        schedules: prev.schedules.map((s) => (s.id === id ? updatedSchedule : s)),
-      }))
+      setSchedules((prev) => prev.map((schedule) => (schedule.id === id ? updatedSchedule : schedule)))
       return updatedSchedule
     } catch (err) {
-      const errorMessage = err instanceof DatabaseError ? err.message : "スケジュールの更新に失敗しました"
-      setState((prev) => ({ ...prev, error: errorMessage }))
+      console.error("Failed to update schedule:", err)
+      setError(err instanceof Error ? err.message : "スケジュールの更新に失敗しました")
       throw err
     }
   }, [])
@@ -74,54 +81,48 @@ export function useSchedules() {
   // スケジュールを削除
   const deleteSchedule = useCallback(async (id: string) => {
     try {
-      setState((prev) => ({ ...prev, error: null }))
+      setError(null)
       await SchedulesService.delete(id)
-      setState((prev) => ({
-        ...prev,
-        schedules: prev.schedules.filter((s) => s.id !== id),
-      }))
+      setSchedules((prev) => prev.filter((schedule) => schedule.id !== id))
     } catch (err) {
-      const errorMessage = err instanceof DatabaseError ? err.message : "スケジュールの削除に失敗しました"
-      setState((prev) => ({ ...prev, error: errorMessage }))
+      console.error("Failed to delete schedule:", err)
+      setError(err instanceof Error ? err.message : "スケジュールの削除に失敗しました")
       throw err
     }
   }, [])
 
-  // 特定の日付のスケジュールを取得
-  const getSchedulesByDate = useCallback(
-    (date: string): Schedule[] => {
-      return state.schedules.filter((s) => s.date === date)
+  // 繰り返しスケジュールを作成
+  const createRecurringSchedule = useCallback(
+    async (data: Omit<ScheduleInsert, "user_id">, endDate: string, frequency: "daily" | "weekly" | "monthly") => {
+      try {
+        setError(null)
+        const newSchedules = await SchedulesService.createRecurring(data, endDate, frequency)
+        setSchedules((prev) => [...prev, ...newSchedules])
+        return newSchedules
+      } catch (err) {
+        console.error("Failed to create recurring schedule:", err)
+        setError(err instanceof Error ? err.message : "繰り返しスケジュールの作成に失敗しました")
+        throw err
+      }
     },
-    [state.schedules],
+    [],
   )
 
-  // エラーをクリア
-  const clearError = useCallback(() => {
-    setState((prev) => ({ ...prev, error: null }))
-  }, [])
-
-  // 認証状態が変わったらデータを取得
+  // 初回データ取得
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchSchedules()
-    } else {
-      setState({
-        schedules: [],
-        loading: false,
-        error: null,
-      })
-    }
-  }, [isAuthenticated, user?.id, fetchSchedules])
+    fetchSchedules()
+  }, [fetchSchedules])
 
   return {
-    schedules: state.schedules,
-    loading: state.loading,
-    error: state.error,
+    schedules,
+    loading,
+    error,
     fetchSchedules,
+    getSchedulesByDate,
+    getSchedulesByDateRange,
     createSchedule,
     updateSchedule,
     deleteSchedule,
-    getSchedulesByDate,
-    clearError,
+    createRecurringSchedule,
   }
 }

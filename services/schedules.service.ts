@@ -118,7 +118,7 @@ export class SchedulesService {
         .select("*")
         .eq("user_id", user.id)
         .eq("date", date)
-        .order("start_time", { ascending: true })
+        .order("time", { ascending: true })
 
       if (error) {
         console.error("Database select error:", error)
@@ -129,6 +129,52 @@ export class SchedulesService {
       return schedules || []
     } catch (error) {
       console.error("SchedulesService.getByDate error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
+      handleSupabaseError(error)
+    }
+  }
+
+  /**
+   * 期間内のスケジュールを取得
+   */
+  static async getByDateRange(startDate: string, endDate: string): Promise<Schedule[]> {
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
+      }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Fetching schedules for user:", user.id, "from:", startDate, "to:", endDate)
+
+      const { data: schedules, error } = await supabase
+        .from("schedules")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("date", startDate)
+        .lte("date", endDate)
+        .order("date", { ascending: true })
+        .order("time", { ascending: true })
+
+      if (error) {
+        console.error("Database select error:", error)
+        handleSupabaseError(error)
+      }
+
+      console.log("Schedules fetched for date range:", schedules?.length || 0, "schedules")
+      return schedules || []
+    } catch (error) {
+      console.error("SchedulesService.getByDateRange error:", error)
       if (error instanceof DatabaseError) {
         throw error
       }
@@ -217,6 +263,78 @@ export class SchedulesService {
       console.log("Schedule deleted successfully")
     } catch (error) {
       console.error("SchedulesService.delete error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
+      handleSupabaseError(error)
+    }
+  }
+
+  /**
+   * 繰り返しスケジュールを作成
+   */
+  static async createRecurring(
+    data: Omit<ScheduleInsert, "user_id">,
+    endDate: string,
+    frequency: "daily" | "weekly" | "monthly",
+  ): Promise<Schedule[]> {
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
+      }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Creating recurring schedule for user:", user.id, "frequency:", frequency)
+
+      const schedules: ScheduleInsert[] = []
+      const startDate = new Date(data.date)
+      const end = new Date(endDate)
+
+      const currentDate = new Date(startDate)
+
+      while (currentDate <= end) {
+        schedules.push({
+          ...data,
+          user_id: user.id,
+          date: currentDate.toISOString().split("T")[0],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+
+        // 次の日付を計算
+        switch (frequency) {
+          case "daily":
+            currentDate.setDate(currentDate.getDate() + 1)
+            break
+          case "weekly":
+            currentDate.setDate(currentDate.getDate() + 7)
+            break
+          case "monthly":
+            currentDate.setMonth(currentDate.getMonth() + 1)
+            break
+        }
+      }
+
+      const { data: createdSchedules, error } = await supabase.from("schedules").insert(schedules).select()
+
+      if (error) {
+        console.error("Database insert error:", error)
+        handleSupabaseError(error)
+      }
+
+      console.log("Recurring schedules created successfully:", createdSchedules?.length || 0, "schedules")
+      return createdSchedules || []
+    } catch (error) {
+      console.error("SchedulesService.createRecurring error:", error)
       if (error instanceof DatabaseError) {
         throw error
       }
