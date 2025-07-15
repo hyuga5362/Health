@@ -16,6 +16,12 @@ export class UserSettingsService {
         throw new DatabaseError("認証が必要です。")
       }
 
+      const { data, error } = await supabase
+        .from("user_settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
       // 既存の設定を取得
       const { data: existingSettings, error: fetchError } = await supabase
         .from("user_settings")

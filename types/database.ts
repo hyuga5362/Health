@@ -1,134 +1,101 @@
 export type HealthStatus = "good" | "normal" | "bad"
+export type Theme = "light" | "dark" | "system"
 
-export interface Database {
-  public: {
-    Tables: {
-      health_records: {
-        Row: {
-          id: string
-          user_id: string
-          date: string
-          status: HealthStatus
-          notes: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          date: string
-          status: HealthStatus
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          date?: string
-          status?: HealthStatus
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      schedules: {
-        Row: {
-          id: string
-          user_id: string
-          title: string
-          description: string | null
-          date: string
-          start_time: string | null
-          end_time: string | null
-          is_all_day: boolean
-          calendar_source: string
-          external_id: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          title: string
-          description?: string | null
-          date: string
-          start_time?: string | null
-          end_time?: string | null
-          is_all_day?: boolean
-          calendar_source?: string
-          external_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          title?: string
-          description?: string | null
-          date?: string
-          start_time?: string | null
-          end_time?: string | null
-          is_all_day?: boolean
-          calendar_source?: string
-          external_id?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      user_settings: {
-        Row: {
-          id: string
-          user_id: string
-          font_size: number
-          week_starts_monday: boolean
-          google_calendar_connected: boolean
-          apple_calendar_connected: boolean
-          theme: "light" | "dark" | "system"
-          notifications_enabled: boolean
-          reminder_time: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          font_size?: number
-          week_starts_monday?: boolean
-          google_calendar_connected?: boolean
-          apple_calendar_connected?: boolean
-          theme?: "light" | "dark" | "system"
-          notifications_enabled?: boolean
-          reminder_time?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          font_size?: number
-          week_starts_monday?: boolean
-          google_calendar_connected?: boolean
-          apple_calendar_connected?: boolean
-          theme?: "light" | "dark" | "system"
-          notifications_enabled?: boolean
-          reminder_time?: string
-          created_at?: string
-          updated_at?: string
-        }
-      }
-    }
-  }
+export interface HealthRecord {
+  id: string
+  user_id: string
+  date: string
+  status: HealthStatus
+  score: number | null
+  notes: string | null
+  created_at: string
+  updated_at: string
 }
 
-export type HealthRecord = Database["public"]["Tables"]["health_records"]["Row"]
-export type HealthRecordInsert = Database["public"]["Tables"]["health_records"]["Insert"]
-export type HealthRecordUpdate = Database["public"]["Tables"]["health_records"]["Update"]
+export interface HealthRecordInsert {
+  id?: string
+  user_id: string
+  date: string
+  status: HealthStatus
+  score?: number | null
+  notes?: string | null
+  created_at?: string
+  updated_at?: string
+}
 
-export type Schedule = Database["public"]["Tables"]["schedules"]["Row"]
-export type ScheduleInsert = Database["public"]["Tables"]["schedules"]["Insert"]
-export type ScheduleUpdate = Database["public"]["Tables"]["schedules"]["Update"]
+export interface HealthRecordUpdate {
+  id?: string
+  user_id?: string
+  date?: string
+  status?: HealthStatus
+  score?: number | null
+  notes?: string | null
+  created_at?: string
+  updated_at?: string
+}
 
-export type UserSettings = Database["public"]["Tables"]["user_settings"]["Row"]
-export type UserSettingsInsert = Database["public"]["Tables"]["user_settings"]["Insert"]
-export type UserSettingsUpdate = Database["public"]["Tables"]["user_settings"]["Update"]
+export interface UserSettings {
+  id: string
+  user_id: string
+  font_size: number
+  week_starts_monday: boolean
+  google_calendar_connected: boolean
+  apple_calendar_connected: boolean
+  theme: Theme
+  notifications_enabled: boolean
+  reminder_time: string
+  created_at: string
+  updated_at: string
+}
+
+export interface UserSettingsInsert {
+  id?: string
+  user_id: string
+  font_size?: number
+  week_starts_monday?: boolean
+  google_calendar_connected?: boolean
+  apple_calendar_connected?: boolean
+  theme?: Theme
+  notifications_enabled?: boolean
+  reminder_time?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface UserSettingsUpdate extends Partial<UserSettingsInsert> {}
+
+export interface Schedule {
+  id: string
+  user_id: string
+  title: string
+  description: string | null
+  calendar_source: string | null
+  start_date: string | null
+  end_date: string | null
+  date: string | null
+  start_time: string | null
+  end_time: string | null
+  is_all_day: boolean
+  reminder_enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ScheduleInsert {
+  id?: string
+  user_id: string
+  title: string
+  description?: string | null
+  calendar_source?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  date?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  is_all_day?: boolean
+  reminder_enabled?: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ScheduleUpdate extends Partial<ScheduleInsert> {}
