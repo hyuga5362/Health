@@ -8,7 +8,7 @@
 - GitHub
 - Supabase
 
-## 画像
+## ER図
 ![説明画像](docs/画像ファイル1.png)
 
 ## 📊 バージョン履歴
