@@ -4,8 +4,24 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { useHealthRecords } from "@/hooks/use-health-records"
 import type { HealthStatus } from "@/types/database"
+
+type HealthRecord = {
+  id: string
+  user_id: string
+  date: string
+  status: HealthStatus
+  score: number | null
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+type HealthCalendarProps = {
+  healthRecords: HealthRecord[]
+  selectedDate: Date
+  onDateSelect: (date: Date) => void
+}
 
 interface CalendarDay {
   date: number
@@ -15,26 +31,24 @@ interface CalendarDay {
   status?: HealthStatus
 }
 
-export function HealthCalendar() {
+export function HealthCalendar({
+  healthRecords,
+  selectedDate,
+  onDateSelect,
+}: HealthCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
-  const { records, loading, updateHealthRecord } = useHealthRecords()
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
 
-  // 月の最初の日と最後の日を取得
   const firstDayOfMonth = new Date(year, month, 1)
   const lastDayOfMonth = new Date(year, month + 1, 0)
-
-  // 月の最初の日の曜日を取得（0=日曜日）
   const firstDayWeekday = firstDayOfMonth.getDay()
 
-  // カレンダーに表示する日付を生成
   const generateCalendarDays = (): CalendarDay[] => {
     const days: CalendarDay[] = []
     const today = new Date()
 
-    // 前月の日付を追加
     const prevMonth = new Date(year, month - 1, 0)
     for (let i = firstDayWeekday - 1; i >= 0; i--) {
       const date = prevMonth.getDate() - i
@@ -47,7 +61,6 @@ export function HealthCalendar() {
       })
     }
 
-    // 当月の日付を追加
     for (let date = 1; date <= lastDayOfMonth.getDate(); date++) {
       const fullDate = new Date(year, month, date).toISOString().split("T")[0]
       const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === date
@@ -60,7 +73,6 @@ export function HealthCalendar() {
       })
     }
 
-    // 次月の日付を追加（42日になるまで）
     const remainingDays = 42 - days.length
     for (let date = 1; date <= remainingDays; date++) {
       const fullDate = new Date(year, month + 1, date).toISOString().split("T")[0]
@@ -77,39 +89,28 @@ export function HealthCalendar() {
 
   const calendarDays = generateCalendarDays()
 
-  // 体調記録をカレンダーの日付にマッピング
   const daysWithStatus = calendarDays.map((day) => {
-    const record = records.find((r) => r.date === day.fullDate)
+    const record = healthRecords.find((r) => r.date === day.fullDate)
     return {
       ...day,
       status: record?.status,
     }
   })
 
-  const handleStatusClick = async (date: string, currentStatus?: HealthStatus) => {
-    // ステータスを循環させる: undefined -> good -> normal -> bad -> undefined
-    let newStatus: HealthStatus | undefined
-    switch (currentStatus) {
-      case undefined:
-        newStatus = "good"
-        break
-      case "good":
-        newStatus = "normal"
-        break
-      case "normal":
-        newStatus = "bad"
-        break
-      case "bad":
-        newStatus = undefined
-        break
-    }
-
-    if (newStatus) {
-      await updateHealthRecord(date, newStatus)
-    }
+  const navigateMonth = (direction: "prev" | "next") => {
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev)
+      if (direction === "prev") {
+        newDate.setMonth(prev.getMonth() - 1)
+      } else {
+        newDate.setMonth(prev.getMonth() + 1)
+      }
+      return newDate
+    })
   }
 
-  const getStatusColor = (status?: HealthStatus) => {
+  const getStatusColor = (status?: HealthStatus, isSelected?: boolean) => {
+    if (isSelected) return "ring-2 ring-blue-500"
     switch (status) {
       case "good":
         return "bg-green-500 hover:bg-green-600"
@@ -135,29 +136,7 @@ export function HealthCalendar() {
     }
   }
 
-  const navigateMonth = (direction: "prev" | "next") => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev)
-      if (direction === "prev") {
-        newDate.setMonth(prev.getMonth() - 1)
-      } else {
-        newDate.setMonth(prev.getMonth() + 1)
-      }
-      return newDate
-    })
-  }
-
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"]
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center">読み込み中...</div>
-        </CardContent>
-      </Card>
-    )
-  }
 
   return (
     <Card>
@@ -189,13 +168,12 @@ export function HealthCalendar() {
           {daysWithStatus.map((day, index) => (
             <button
               key={index}
-              onClick={() => day.isCurrentMonth && handleStatusClick(day.fullDate, day.status)}
+              onClick={() => day.isCurrentMonth && onDateSelect(new Date(day.fullDate))}
               disabled={!day.isCurrentMonth}
               className={`
                 h-12 flex flex-col items-center justify-center text-sm rounded-md transition-colors
                 ${day.isCurrentMonth ? "cursor-pointer" : "cursor-default opacity-30"}
-                ${day.isToday ? "ring-2 ring-blue-500" : ""}
-                ${getStatusColor(day.status)}
+                ${getStatusColor(day.status, selectedDate.toISOString().split("T")[0] === day.fullDate)}
               `}
             >
               <span className={`${day.status ? "text-white" : "text-gray-900"}`}>{day.date}</span>
