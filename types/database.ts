@@ -99,3 +99,28 @@ export interface ScheduleInsert {
 }
 
 export interface ScheduleUpdate extends Partial<ScheduleInsert> {}
+
+export type Database = {
+  public: {
+    Tables: {
+      health_records: {
+        Row: HealthRecord
+        Insert: HealthRecord
+        Update: HealthRecord
+      }
+      user_settings: {
+        Row: UserSettings
+        Insert: UserSettings
+        Update: UserSettings
+      }
+      schedules: {
+        Row: Schedule
+        Insert: Schedule
+        Update: Schedule
+      }
+    }
+    Views: {}
+    Functions: {}
+    Enums: {}
+  }
+}
