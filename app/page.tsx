@@ -147,7 +147,7 @@ export default function HomePage() {
         {records.length === 0 && <SampleDataGenerator onDataGenerated={handleGenerateSampleData} />}
 
         {/* Stats Overview */}
-        <HealthStats healthRecords={records.map(r => ({ ...r, notes: r.notes === null ? undefined : r.notes }))} />
+        <HealthStats healthRecords={records.map((r) => ({ ...r, notes: r.notes === null ? undefined : r.notes }))} />
 
         {/* Calendar */}
         <Card className="bg-white shadow-sm">
@@ -155,7 +155,11 @@ export default function HomePage() {
             <CardTitle className="text-base font-medium text-gray-800">カレンダー</CardTitle>
           </CardHeader>
           <CardContent>
-            <HealthCalendar healthRecords={records.map(r => ({ ...r, notes: r.notes === null ? undefined : r.notes }))} selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+            <HealthCalendar
+              healthRecords={records.map((r) => ({ ...r, notes: r.notes === null ? undefined : r.notes }))}
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+            />
           </CardContent>
         </Card>
 

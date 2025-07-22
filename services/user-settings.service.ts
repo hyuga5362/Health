@@ -7,77 +7,79 @@ export class UserSettingsService {
    * ユーザー設定を取得（なければ作成）
    */
   static async get(): Promise<UserSettings> {
-  try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
 
-    if (userError) {
-      console.error("User authentication error:", userError)
-      throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
+      if (userError) {
+        console.error("User authentication error:", userError)
+        throw new DatabaseError("認証エラーが発生しました。再度ログインしてください。")
+      }
+
+      if (!user) {
+        throw new DatabaseError("認証が必要です。ログインしてください。")
+      }
+
+      console.log("Fetching user settings for user:", user.id)
+
+      // 既存の設定を取得
+      const { data: existingSettings, error: fetchError } = await supabase
+        .from("user_settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle() // single() の代わりに maybeSingle() を使用
+
+      if (fetchError) {
+        console.error("Database select error:", fetchError)
+        handleSupabaseError(fetchError)
+      }
+
+      // 設定が存在する場合は返す
+      if (existingSettings) {
+        console.log("User settings found:", existingSettings)
+        return existingSettings
+      }
+
+      console.log("User settings not found, creating default settings")
+
+      // 設定が存在しない場合は初期設定を作成
+      // created_at と updated_at はSupabaseが自動で設定するため、ここでは含めない
+      const defaultSettings: UserSettingsInsert = {
+        user_id: user.id,
+        font_size: 16,
+        week_starts_monday: false,
+        google_calendar_connected: false,
+        apple_calendar_connected: false,
+        theme: "light",
+        notifications_enabled: true,
+        reminder_time: "09:00:00",
+      }
+
+      console.log("Attempting to insert default settings:", defaultSettings)
+
+      const { data: newSettings, error: createError } = await supabase
+        .from("user_settings")
+        .insert(defaultSettings)
+        .select()
+        .single()
+
+      if (createError) {
+        console.error("Database insert error detail:", createError)
+        handleSupabaseError(createError)
+      }
+
+      console.log("Default user settings created:", newSettings)
+      return newSettings
+    } catch (error) {
+      console.error("UserSettingsService.get error:", error)
+      if (error instanceof DatabaseError) {
+        throw error
+      }
+      handleSupabaseError(error)
     }
-
-    if (!user) {
-      throw new DatabaseError("認証が必要です。ログインしてください。")
-    }
-
-    console.log("Fetching user settings for user:", user.id)
-
-    // 既存の設定を取得
-    const { data: existingSettings, error: fetchError } = await supabase
-      .from("user_settings")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle()
-
-    if (fetchError) {
-      console.error("Database select error:", fetchError)
-      handleSupabaseError(fetchError)
-    }
-
-    if (existingSettings) {
-      console.log("User settings found:", existingSettings)
-      return existingSettings
-    }
-
-    console.log("User settings not found, creating default settings")
-
-    // Supabaseのテーブルの定義に合わせて「created_at」「updated_at」を抜く
-    const defaultSettings: UserSettingsInsert = {
-      user_id: user.id,
-      font_size: 16,
-      week_starts_monday: false,
-      google_calendar_connected: false,
-      apple_calendar_connected: false,
-      theme: "light",
-      notifications_enabled: true,
-      reminder_time: "09:00:00",
-    }
-
-    console.log("★ INSERTするデータ:", defaultSettings)
-
-    const { data: newSettings, error: createError } = await supabase
-      .from("user_settings")
-      .insert(defaultSettings)
-      .select()
-      .single()
-
-    if (createError) {
-      console.error("★★ Database insert error detail:", createError)
-      throw new DatabaseError("ユーザー設定の作成に失敗しました。")
-    }
-
-    console.log("Default user settings created:", newSettings)
-    return newSettings
-  } catch (error) {
-    console.error("UserSettingsService.get error:", error)
-    if (error instanceof DatabaseError) {
-      throw error
-    }
-    handleSupabaseError(error)
   }
-}
 
   /**
    * ユーザー設定を更新
