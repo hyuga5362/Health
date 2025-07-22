@@ -1,12 +1,29 @@
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/database"
 
-export const supabase = createClientComponentClient<Database>()
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Supabase環境変数が設定されていません。")
+}
+
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+})
 
 // サーバーサイド用のクライアント（必要に応じて）
 export const createServerSupabaseClient = () => {
-  // サーバーサイド用のクライアントの実装が必要です
-  throw new Error("Server-side Supabase client is not implemented yet.")
+  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
 }
 
 export type HealthStatus = "good" | "normal" | "bad"

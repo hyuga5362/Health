@@ -42,7 +42,8 @@ export const localStorageAPI = {
   // 体調記録
   getHealthRecords: (): HealthRecord[] => {
     if (typeof window === "undefined") return []
-    return getItem(STORAGE_KEYS.HEALTH_RECORDS) || []
+    const data = localStorage.getItem(STORAGE_KEYS.HEALTH_RECORDS)
+    return data ? JSON.parse(data) : []
   },
 
   saveHealthRecord: (record: Omit<HealthRecord, "id" | "created_at" | "updated_at">): HealthRecord => {
@@ -68,20 +69,21 @@ export const localStorageAPI = {
       records.push(newRecord)
     }
 
-    setItem(STORAGE_KEYS.HEALTH_RECORDS, records)
+    localStorage.setItem(STORAGE_KEYS.HEALTH_RECORDS, JSON.stringify(records))
     return records.find((r) => r.date === record.date)!
   },
 
   deleteHealthRecord: (id: string): void => {
     const records = localStorageAPI.getHealthRecords()
     const filtered = records.filter((r) => r.id !== id)
-    setItem(STORAGE_KEYS.HEALTH_RECORDS, filtered)
+    localStorage.setItem(STORAGE_KEYS.HEALTH_RECORDS, JSON.stringify(filtered))
   },
 
   // スケジュール
   getSchedules: (): Schedule[] => {
     if (typeof window === "undefined") return []
-    return getItem(STORAGE_KEYS.SCHEDULES) || []
+    const data = localStorage.getItem(STORAGE_KEYS.SCHEDULES)
+    return data ? JSON.parse(data) : []
   },
 
   saveSchedule: (schedule: Omit<Schedule, "id" | "created_at" | "updated_at">): Schedule => {
@@ -96,7 +98,7 @@ export const localStorageAPI = {
     }
 
     schedules.push(newSchedule)
-    setItem(STORAGE_KEYS.SCHEDULES, schedules)
+    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules))
     return newSchedule
   },
 
@@ -114,17 +116,18 @@ export const localStorageAPI = {
       }
     }
 
-    return (
-      getItem(STORAGE_KEYS.USER_SETTINGS) || {
-        id: "default",
-        font_size: 16,
-        week_starts_monday: false,
-        google_calendar_connected: false,
-        apple_calendar_connected: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-    )
+    const data = localStorage.getItem(STORAGE_KEYS.USER_SETTINGS)
+    return data
+      ? JSON.parse(data)
+      : {
+          id: "default",
+          font_size: 16,
+          week_starts_monday: false,
+          google_calendar_connected: false,
+          apple_calendar_connected: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
   },
 
   saveUserSettings: (settings: Partial<UserSettings>): UserSettings => {
@@ -134,7 +137,7 @@ export const localStorageAPI = {
       ...settings,
       updated_at: new Date().toISOString(),
     }
-    setItem(STORAGE_KEYS.USER_SETTINGS, updated)
+    localStorage.setItem(STORAGE_KEYS.USER_SETTINGS, JSON.stringify(updated))
     return updated
   },
 }
@@ -165,33 +168,6 @@ export const generateSampleData = () => {
     })
   }
 
-  setItem(STORAGE_KEYS.HEALTH_RECORDS, sampleRecords)
+  localStorage.setItem(STORAGE_KEYS.HEALTH_RECORDS, JSON.stringify(sampleRecords))
   return sampleRecords
-}
-
-// ローカルストレージ操作関数
-export const setItem = (key: string, value: any) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch (error) {
-    console.error("Error setting item to local storage", error)
-  }
-}
-
-export const getItem = (key: string) => {
-  try {
-    const item = localStorage.getItem(key)
-    return item ? JSON.parse(item) : null
-  } catch (error) {
-    console.error("Error getting item from local storage", error)
-    return null
-  }
-}
-
-export const removeItem = (key: string) => {
-  try {
-    localStorage.removeItem(key)
-  } catch (error) {
-    console.error("Error removing item from local storage", error)
-  }
 }

@@ -21,16 +21,20 @@ export function useSchedules() {
   })
 
   const fetchSchedules = useCallback(async () => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated) {
+      setState({ schedules: [], loading: false, error: null })
+      return
+    }
 
     setState((prev) => ({ ...prev, loading: true, error: null }))
+
     try {
-      const fetchedSchedules = await SchedulesService.getAll()
-      setState((prev) => ({
-        ...prev,
-        schedules: fetchedSchedules,
+      const schedules = await SchedulesService.getAll()
+      setState({
+        schedules,
         loading: false,
-      }))
+        error: null,
+      })
     } catch (error) {
       logError(error, "useSchedules.fetchSchedules")
       setState((prev) => ({
@@ -42,62 +46,57 @@ export function useSchedules() {
   }, [isAuthenticated])
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchSchedules()
-    } else {
-      setState({ schedules: [], loading: false, error: null })
-    }
-  }, [isAuthenticated, user?.id, fetchSchedules])
+    fetchSchedules()
+  }, [fetchSchedules, user?.id])
 
-  const addSchedule = async (data: Omit<ScheduleInsert, "user_id">) => {
-    setState((prev) => ({ ...prev, loading: true, error: null }))
+  const addSchedule = async (schedule: ScheduleInsert) => {
     try {
-      const newSchedule = await SchedulesService.create(data)
+      const newSchedule = await SchedulesService.create(schedule)
       setState((prev) => ({
         ...prev,
-        schedules: [...prev.schedules, newSchedule],
-        loading: false,
+        schedules: [newSchedule, ...prev.schedules].sort(
+          (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime(),
+        ),
+        error: null,
       }))
       return newSchedule
     } catch (error) {
       logError(error, "useSchedules.addSchedule")
       const errorMessage = getErrorMessage(error)
-      setState((prev) => ({ ...prev, loading: false, error: errorMessage }))
+      setState((prev) => ({ ...prev, error: errorMessage }))
       throw error
     }
   }
 
-  const updateSchedule = async (id: string, data: ScheduleUpdate) => {
-    setState((prev) => ({ ...prev, loading: true, error: null }))
+  const updateSchedule = async (id: string, updates: ScheduleUpdate) => {
     try {
-      const updatedSchedule = await SchedulesService.update(id, data)
+      const updatedSchedule = await SchedulesService.update(id, updates)
       setState((prev) => ({
         ...prev,
         schedules: prev.schedules.map((s) => (s.id === id ? updatedSchedule : s)),
-        loading: false,
+        error: null,
       }))
       return updatedSchedule
     } catch (error) {
       logError(error, "useSchedules.updateSchedule")
       const errorMessage = getErrorMessage(error)
-      setState((prev) => ({ ...prev, loading: false, error: errorMessage }))
+      setState((prev) => ({ ...prev, error: errorMessage }))
       throw error
     }
   }
 
   const deleteSchedule = async (id: string) => {
-    setState((prev) => ({ ...prev, loading: true, error: null }))
     try {
       await SchedulesService.delete(id)
       setState((prev) => ({
         ...prev,
         schedules: prev.schedules.filter((s) => s.id !== id),
-        loading: false,
+        error: null,
       }))
     } catch (error) {
       logError(error, "useSchedules.deleteSchedule")
       const errorMessage = getErrorMessage(error)
-      setState((prev) => ({ ...prev, loading: false, error: errorMessage }))
+      setState((prev) => ({ ...prev, error: errorMessage }))
       throw error
     }
   }
@@ -113,7 +112,7 @@ export function useSchedules() {
     addSchedule,
     updateSchedule,
     deleteSchedule,
-    refetchSchedules: fetchSchedules,
+    refetch: fetchSchedules,
     clearError,
   }
 }
