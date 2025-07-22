@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from "react"
 import { UserSettingsService } from "@/services/user-settings.service"
 import { getErrorMessage, logError } from "@/lib/errors"
 import { useAuth } from "./use-auth"
-import type { UserSetting, UserSettingUpdate } from "@/types/database"
+import type { UserSettings, UserSettingsUpdate } from "@/types/database"
 
 interface UserSettingsState {
-  userSettings: UserSetting | null
+  userSettings: UserSettings | null
   loading: boolean
   error: string | null
 }
@@ -49,7 +49,7 @@ export function useUserSettings() {
     }
   }, [isAuthenticated, user?.id, fetchSettings])
 
-  const updateSetting = async (data: UserSettingUpdate) => {
+  const updateSetting = async (data: UserSettingsUpdate) => {
     setState((prev) => ({ ...prev, loading: true, error: null }))
     try {
       const updatedSettings = await UserSettingsService.update(data)
