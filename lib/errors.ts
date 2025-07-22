@@ -10,10 +10,7 @@ export class AuthError extends Error {
 }
 
 export class DatabaseError extends Error {
-  constructor(
-    message: string,
-    public code?: string,
-  ) {
+  constructor(message: string) {
     super(message)
     this.name = "DatabaseError"
   }
@@ -56,31 +53,77 @@ export function validateTheme(theme: string): boolean {
 
 // Supabaseエラーハンドリング
 export function handleSupabaseError(error: any): never {
-  console.error("Supabase Operation Error:", error)
-  if (error.code) {
-    throw new DatabaseError(`データベースエラーが発生しました: ${error.message} (Code: ${error.code})`, error.code)
-  } else if (error.message) {
-    throw new DatabaseError(`操作に失敗しました: ${error.message}`)
-  } else {
-    throw new DatabaseError("不明なデータベースエラーが発生しました。")
+  console.error("Supabase error:", error)
+
+  if (error?.code === "auth_session_missing") {
+    throw new AuthError("認証セッションが見つかりません。再度ログインしてください。", error.code)
   }
+
+  if (error?.code === "invalid_credentials") {
+    throw new AuthError("メールアドレスまたはパスワードが正しくありません。", error.code)
+  }
+
+  if (error?.code === "email_not_confirmed") {
+    throw new AuthError("メールアドレスの確認が完了していません。", error.code)
+  }
+
+  if (error?.code === "signup_disabled") {
+    throw new AuthError("新規登録は現在無効になっています。", error.code)
+  }
+
+  if (error?.code === "email_address_invalid") {
+    throw new AuthError("有効なメールアドレスを入力してください。", error.code)
+  }
+
+  if (error?.code === "password_too_short") {
+    throw new AuthError("パスワードは6文字以上で入力してください。", error.code)
+  }
+
+  if (error?.code === "PGRST116") {
+    throw new DatabaseError("データが見つかりませんでした。")
+  }
+
+  if (error?.code === "23505") {
+    throw new DatabaseError("データが既に存在します。")
+  }
+
+  if (error?.code === "42501") {
+    throw new DatabaseError("データベースへのアクセス権限がありません。")
+  }
+
+  if (error?.message) {
+    throw new DatabaseError(`データベースエラー: ${error.message}`)
+  }
+
+  throw new DatabaseError("予期しないエラーが発生しました。")
 }
 
 // エラーメッセージを取得
-export function getErrorMessage(error: any): string {
-  if (error instanceof DatabaseError) {
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof AuthError || error instanceof DatabaseError || error instanceof ValidationError) {
     return error.message
   }
+
   if (error instanceof Error) {
     return error.message
   }
-  return "不明なエラーが発生しました。"
+
+  if (typeof error === "string") {
+    return error
+  }
+
+  return "予期しないエラーが発生しました。"
 }
 
 // ログ出力
-export function logError(error: any, context = "Application") {
-  console.error(`[ERROR] ${context}:`, error)
-  if (error.stack) {
-    console.error(error.stack)
+export function logError(error: unknown, context?: string): void {
+  const timestamp = new Date().toISOString()
+  const contextStr = context ? `[${context}] ` : ""
+
+  console.error(`${timestamp} ${contextStr}Error:`, error)
+
+  // 本番環境では外部ログサービスに送信することも可能
+  if (process.env.NODE_ENV === "production") {
+    // 例: Sentry, LogRocket, etc.
   }
 }

@@ -91,6 +91,11 @@ export default function HomePage() {
 
   const selectedDateRecord = selectedDate ? getRecordByDate(format(selectedDate, "yyyy-MM-dd")) : null
 
+  useEffect(() => {
+    console.log("Selected Date:", selectedDate ? format(selectedDate, "yyyy-MM-dd") : "No date selected")
+    console.log("Selected Date Record:", selectedDateRecord)
+  }, [selectedDate, selectedDateRecord])
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-amber-50 flex items-center justify-center">

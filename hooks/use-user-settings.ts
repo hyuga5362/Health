@@ -35,6 +35,7 @@ export function useUserSettings() {
       })
     } catch (error) {
       logError(error, "useUserSettings.fetchSettings")
+      console.error("Error fetching settings in useUserSettings:", error)
       setState((prev) => ({
         ...prev,
         loading: false,
