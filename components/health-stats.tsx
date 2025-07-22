@@ -1,92 +1,61 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, Calendar, BarChart3 } from "lucide-react"
-import type { HealthRecord } from "@/lib/supabase"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
+import type { HealthRecord } from "@/types/database"
 
 interface HealthStatsProps {
   healthRecords: HealthRecord[]
 }
 
 export function HealthStats({ healthRecords }: HealthStatsProps) {
-  if (healthRecords.length === 0) {
-    return (
-      <Card className="bg-white shadow-sm">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base font-medium text-gray-800 flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            統計概要
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-500 text-center py-4">まだ体調記録がありません</p>
-        </CardContent>
-      </Card>
-    )
-  }
-
   const totalRecords = healthRecords.length
-  const goodDays = healthRecords.filter((record) => record.status === "good").length
-  const normalDays = healthRecords.filter((record) => record.status === "normal").length
-  const badDays = healthRecords.filter((record) => record.status === "bad").length
+  const goodCount = healthRecords.filter((r) => r.status === "good").length
+  const normalCount = healthRecords.filter((r) => r.status === "normal").length
+  const badCount = healthRecords.filter((r) => r.status === "bad").length
 
-  const goodPercentage = Math.round((goodDays / totalRecords) * 100)
-  const normalPercentage = Math.round((normalDays / totalRecords) * 100)
-  const badPercentage = Math.round((badDays / totalRecords) * 100)
-
-  // 最近7日間の統計
-  const recentRecords = healthRecords.slice(0, 7)
-  const recentGoodDays = recentRecords.filter((record) => record.status === "good").length
-  const recentTrend = recentRecords.length > 0 ? Math.round((recentGoodDays / recentRecords.length) * 100) : 0
+  const goodPercentage = totalRecords > 0 ? Math.round((goodCount / totalRecords) * 100) : 0
+  const normalPercentage = totalRecords > 0 ? Math.round((normalCount / totalRecords) * 100) : 0
+  const badPercentage = totalRecords > 0 ? Math.round((badCount / totalRecords) * 100) : 0
 
   return (
     <Card className="bg-white shadow-sm">
       <CardHeader className="pb-4">
-        <CardTitle className="text-base font-medium text-gray-800 flex items-center gap-2">
-          <BarChart3 className="h-4 w-4" />
-          統計概要
-        </CardTitle>
+        <CardTitle className="text-base font-medium text-gray-800">体調統計</CardTitle>
+        <CardDescription className="text-sm text-gray-500">これまでの体調記録の概要です。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* 全体統計 */}
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div className="space-y-1">
-            <div className="text-2xl font-bold text-green-600">{goodDays}</div>
-            <div className="text-xs text-gray-500">良い日</div>
-            <div className="text-xs text-green-600">{goodPercentage}%</div>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-gray-600">
+            <span>良い ({goodCount}日)</span>
+            <span>{goodPercentage}%</span>
           </div>
-          <div className="space-y-1">
-            <div className="text-2xl font-bold text-yellow-600">{normalDays}</div>
-            <div className="text-xs text-gray-500">普通の日</div>
-            <div className="text-xs text-yellow-600">{normalPercentage}%</div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-2xl font-bold text-red-600">{badDays}</div>
-            <div className="text-xs text-gray-500">悪い日</div>
-            <div className="text-xs text-red-600">{badPercentage}%</div>
-          </div>
+          <Progress
+            value={goodPercentage}
+            className="h-2 bg-green-200 [&::-webkit-progress-bar]:bg-green-500 [&::-webkit-progress-value]:bg-green-500 [&::moz-progress-bar]:bg-green-500"
+          />
         </div>
-
-        {/* 最近の傾向 */}
-        <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-gray-700">最近7日間</span>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-gray-600">
+            <span>普通 ({normalCount}日)</span>
+            <span>{normalPercentage}%</span>
           </div>
-          <div className="text-right">
-            <div className="text-lg font-bold text-blue-600">{recentTrend}%</div>
-            <div className="text-xs text-gray-500">良い日の割合</div>
-          </div>
+          <Progress
+            value={normalPercentage}
+            className="h-2 bg-yellow-200 [&::-webkit-progress-bar]:bg-yellow-500 [&::-webkit-progress-value]:bg-yellow-500 [&::moz-progress-bar]:bg-yellow-500"
+          />
         </div>
-
-        {/* 記録日数 */}
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">記録日数</span>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-gray-600">
+            <span>悪い ({badCount}日)</span>
+            <span>{badPercentage}%</span>
           </div>
-          <div className="text-lg font-bold text-gray-800">{totalRecords}日</div>
+          <Progress
+            value={badPercentage}
+            className="h-2 bg-red-200 [&::-webkit-progress-bar]:bg-red-500 [&::-webkit-progress-value]:bg-red-500 [&::moz-progress-bar]:bg-red-500"
+          />
         </div>
+        <div className="text-sm text-gray-500 text-center pt-2">総記録日数: {totalRecords}日</div>
       </CardContent>
     </Card>
   )

@@ -37,7 +37,8 @@ export function useHealthRecords() {
     setState((prev) => ({ ...prev, loading: true, error: null }))
 
     try {
-      const [records, stats] = await Promise.all([HealthRecordsService.getAll(), HealthRecordsService.getStatistics()])
+      const records = await HealthRecordsService.getAll()
+      const stats = await HealthRecordsService.getStatistics() // 統計もここで取得
 
       setState({
         records,
@@ -72,7 +73,7 @@ export function useHealthRecords() {
   // 体調記録を追加
   const addRecord = async (date: string, status: HealthStatus, notes?: string) => {
     try {
-      const record = await HealthRecordsService.upsertByDate(date, status, notes)
+      const record = await HealthRecordsService.upsert(date, status, notes)
 
       setState((prev) => {
         const existingIndex = prev.records.findIndex((r) => r.date === date)

@@ -1,13 +1,14 @@
-[33mcad4ea1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{0}: commit: エラーの原因修正
-[33mc381f93[m HEAD@{1}: commit: 修正
-[33m62c2eea[m HEAD@{2}: reset: moving to origin/main
-[33md7395d7[m HEAD@{3}: commit: ログイン回りの修正
-[33mbf1c0b5[m HEAD@{4}: pull origin main: Fast-forward
-[33m944bb20[m HEAD@{5}: commit (merge): Merge branch 'main' of https://github.com/hyuga5362/Health
-[33ma733394[m HEAD@{6}: commit: 修正
-[33m0cd1f22[m HEAD@{7}: pull origin main: Fast-forward
-[33m1339a30[m HEAD@{8}: commit: 修正
-[33m38ce426[m HEAD@{9}: pull origin main: Fast-forward
-[33m95908b0[m HEAD@{10}: reset: moving to HEAD
-[33m95908b0[m HEAD@{11}: pull origin main: Fast-forward
-[33m5e102b5[m HEAD@{12}: clone: from https://github.com/hyuga5362/Health.git
+# This file is not part of the project code and is for internal use.
+cad4ea1 (HEAD -> main) HEAD@{0}: commit: エラーの原因修正
+c381f93 HEAD@{1}: commit: 修正
+62c2eea HEAD@{2}: reset: moving to origin/main
+d7395d7 HEAD@{3}: commit: ログイン回りの修正
+bf1c0b5 HEAD@{4}: pull origin main: Fast-forward
+944bb20 HEAD@{5}: commit (merge): Merge branch 'main' of https://github.com/hyuga5362/Health
+a733394 HEAD@{6}: commit: 修正
+0cd1f22 HEAD@{7}: pull origin main: Fast-forward
+1339a30 HEAD@{8}: commit: 修正
+38ce426 HEAD@{9}: pull origin main: Fast-forward
+95908b0 HEAD@{10}: reset: moving to HEAD
+95908b0 HEAD@{11}: pull origin main: Fast-forward
+5e102b5 HEAD@{12}: clone: from https://github.com/hyuga5362/Health.git
