@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { HealthStatus } from "@/types/database"
+import { format } from "date-fns" // date-fnsをインポート
 
 type HealthRecord = {
   id: string
@@ -50,7 +51,8 @@ export function HealthCalendar({ healthRecords, selectedDate, onDateSelect }: He
     const prevMonthLastDay = new Date(year, month, 0) // Last day of previous month
     for (let i = firstDayWeekday - 1; i >= 0; i--) {
       const date = prevMonthLastDay.getDate() - i
-      const fullDate = new Date(year, month - 1, date).toISOString().split("T")[0]
+      // format関数を使用してyyyy-MM-dd形式の文字列を生成
+      const fullDate = format(new Date(year, month - 1, date), "yyyy-MM-dd")
       days.push({
         date,
         fullDate,
@@ -62,7 +64,8 @@ export function HealthCalendar({ healthRecords, selectedDate, onDateSelect }: He
     // Current month's days
     const lastDayOfCurrentMonth = new Date(year, month + 1, 0)
     for (let date = 1; date <= lastDayOfCurrentMonth.getDate(); date++) {
-      const fullDate = new Date(year, month, date).toISOString().split("T")[0]
+      // format関数を使用してyyyy-MM-dd形式の文字列を生成
+      const fullDate = format(new Date(year, month, date), "yyyy-MM-dd")
       const dayDate = new Date(year, month, date)
       dayDate.setHours(0, 0, 0, 0) // Normalize for comparison
       const isToday = today.getTime() === dayDate.getTime()
@@ -78,7 +81,8 @@ export function HealthCalendar({ healthRecords, selectedDate, onDateSelect }: He
     // Next month's days to fill the grid (up to 6 weeks = 42 days)
     const remainingDays = 42 - days.length
     for (let date = 1; date <= remainingDays; date++) {
-      const fullDate = new Date(year, month + 1, date).toISOString().split("T")[0]
+      // format関数を使用してyyyy-MM-dd形式の文字列を生成
+      const fullDate = format(new Date(year, month + 1, date), "yyyy-MM-dd")
       days.push({
         date,
         fullDate,
@@ -129,7 +133,7 @@ export function HealthCalendar({ healthRecords, selectedDate, onDateSelect }: He
     }
 
     if (isSelected) {
-      // Apply a semi-transparent orange background and a stronger orange ring for selected date
+      // 選択された日付のスタイルを強化
       return `bg-orange-100/70 ring-2 ring-orange-500 text-orange-800 font-semibold`
     }
     return baseClasses
@@ -178,25 +182,31 @@ export function HealthCalendar({ healthRecords, selectedDate, onDateSelect }: He
         </div>
 
         <div className="grid grid-cols-7 gap-1">
-          {daysWithStatus.map((day, index) => (
-            <button
-              key={index}
-              onClick={() => day.isCurrentMonth && onDateSelect(new Date(day.fullDate))}
-              disabled={!day.isCurrentMonth}
-              className={`
-                h-12 flex flex-col items-center justify-center text-sm rounded-md transition-colors
-                ${day.isCurrentMonth ? "cursor-pointer" : "cursor-default opacity-30"}
-                ${getStatusColor(day.status, selectedDate.toISOString().split("T")[0] === day.fullDate)}
-              `}
-            >
-              <span
-                className={`${day.status || selectedDate.toISOString().split("T")[0] === day.fullDate ? "text-white" : "text-gray-900"}`}
+          {daysWithStatus.map((day, index) => {
+            const isSelected = format(selectedDate, "yyyy-MM-dd") === day.fullDate
+            return (
+              <button
+                key={index}
+                onClick={() => day.isCurrentMonth && onDateSelect(new Date(day.fullDate))}
+                disabled={!day.isCurrentMonth}
+                className={`
+                  h-12 flex flex-col items-center justify-center text-sm rounded-md transition-colors
+                  ${day.isCurrentMonth ? "cursor-pointer" : "cursor-default opacity-30"}
+                  ${getStatusColor(day.status, isSelected)}
+                `}
               >
-                {day.date}
-              </span>
-              {day.status && <span className="text-xs text-white opacity-90">{getStatusText(day.status)}</span>}
-            </button>
-          ))}
+                <span className={`${isSelected ? "text-orange-800" : day.status ? "text-white" : "text-gray-900"}`}>
+                  {day.date}
+                </span>
+                {day.status && !isSelected && (
+                  <span className="text-xs text-white opacity-90">{getStatusText(day.status)}</span>
+                )}
+                {day.status && isSelected && (
+                  <span className="text-xs text-orange-700 opacity-90">{getStatusText(day.status)}</span>
+                )}
+              </button>
+            )
+          })}
         </div>
 
         <div className="mt-4 flex justify-center gap-4 text-sm">

@@ -14,10 +14,10 @@ import { HealthStats } from "@/components/health-stats"
 import { SampleDataGenerator } from "@/components/sample-data-generator"
 import { useHealthRecords } from "@/hooks/use-health-records"
 import { useAuth } from "@/hooks/use-auth"
-import type { HealthStatus } from "@/types/database"
+import type { HealthStatus } from "@/types/database" // Corrected import for HealthStatus
 import Link from "next/link"
 
-export default function HomePage() {
+const Page = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [isRecording, setIsRecording] = useState(false)
   const { records, loading, addRecord, getRecordByDate, generateSampleData } = useHealthRecords()
@@ -233,3 +233,5 @@ export default function HomePage() {
     </div>
   )
 }
+
+export default Page
