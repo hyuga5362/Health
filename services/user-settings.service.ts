@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { UserSettings, UserSettingsInsert, UserSettingsUpdate } from "@/types/database"
 import { ApplicationError } from "@/lib/errors"
+import { supabase } from "@/lib/supabase"
 
 export class UserSettingsService {
   private supabase: SupabaseClient
@@ -257,27 +258,27 @@ export class UserSettingsService {
     }
   }
 
-  async upsert(settings: Partial<UserSettings>): Promise<UserSettings> {
-    try {
-      const { data, error } = await this.supabase
-        .from("user_settings")
-        .upsert({ ...settings, updated_at: new Date().toISOString() }) // Add updated_at
-        .select()
-        .single()
-
-      if (error) {
-        console.error("Error upserting user settings:", error.message)
-        throw new ApplicationError(`設定の保存に失敗しました: ${error.message}`)
-      }
-
-      if (!data) {
-        throw new ApplicationError("設定の保存に失敗しました: データが返されませんでした。")
-      }
-
-      return data
-    } catch (error) {
-      console.error("Unexpected error in UserSettingsService.upsert:", error)
-      throw new ApplicationError("設定の保存中に予期せぬエラーが発生しました。")
+  /**
+   * ユーザー設定をアップサート（なければ作成、あれば更新）
+   */
+  static async upsert(data: Partial<UserSettings>): Promise<UserSettings> {
+    if (!data.user_id) {
+      throw new Error("user_idが必要です。")
     }
+
+    // supabaseインスタンスを取得
+    // 必要に応じて引数でsupabaseを受け取る設計にしてもOK
+    // ここではグローバルのsupabaseを使う例
+    // import { supabase } from "@/lib/supabase"
+    const { data: settings, error } = await supabase
+      .from("user_settings")
+      .upsert(data, { onConflict: "user_id" })
+      .select()
+      .single()
+
+    if (error) {
+      throw error
+    }
+    return settings
   }
 }

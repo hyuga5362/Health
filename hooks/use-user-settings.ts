@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { UserSettingsService } from "@/services/user-settings.service"
-import { createClient } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 import { useAuth } from "./use-auth"
 import type { UserSettings } from "@/types/database"
 import { ApplicationError } from "@/lib/errors"
@@ -12,8 +12,6 @@ export function useUserSettings() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ApplicationError | null>(null)
-  const supabase = createClient()
-  const userSettingsService = new UserSettingsService(supabase)
 
   const fetchSettings = useCallback(async () => {
     if (!isAuthenticated || !user?.id) {
@@ -23,7 +21,8 @@ export function useUserSettings() {
     setLoading(true)
     setError(null)
     try {
-      const fetchedSettings = await userSettingsService.get(user.id)
+      // 修正: クラスから直接呼び出す
+      const fetchedSettings = await UserSettingsService.get(supabase)
       setSettings(fetchedSettings)
     } catch (err: any) {
       console.error("Failed to fetch user settings:", err)
@@ -31,7 +30,7 @@ export function useUserSettings() {
     } finally {
       setLoading(false)
     }
-  }, [isAuthenticated, user?.id])
+  }, [isAuthenticated, user?.id, supabase])
 
   useEffect(() => {
     if (!authLoading) {
@@ -48,7 +47,7 @@ export function useUserSettings() {
       setLoading(true)
       setError(null)
       try {
-        const updatedSettings = await userSettingsService.upsert({ ...newSettings, user_id: user.id })
+        const updatedSettings = await UserSettingsService.upsert({ ...newSettings, user_id: user.id })
         setSettings(updatedSettings)
         return updatedSettings
       } catch (err: any) {
