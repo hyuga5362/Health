@@ -92,8 +92,8 @@ export default function HomePage() {
   const selectedDateRecord = selectedDate ? getRecordByDate(format(selectedDate, "yyyy-MM-dd")) : null
 
   useEffect(() => {
-    console.log("Selected Date:", selectedDate ? format(selectedDate, "yyyy-MM-dd") : "No date selected")
-    console.log("Selected Date Record:", selectedDateRecord)
+    console.log("Selected Date (app/page.tsx):", selectedDate ? format(selectedDate, "yyyy-MM-dd") : "No date selected")
+    console.log("Selected Date Record (app/page.tsx):", selectedDateRecord)
   }, [selectedDate, selectedDateRecord])
 
   if (authLoading || loading) {
