@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { UserSettings, UserSettingsInsert, UserSettingsUpdate } from "@/types/database"
 import { ApplicationError } from "@/lib/errors"
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase" // supabaseインスタンスをインポート
 
 export class UserSettingsService {
   private supabase: SupabaseClient
@@ -56,8 +56,8 @@ export class UserSettingsService {
         user_id: user.id,
         font_size: 16,
         week_starts_monday: false,
-        google_calendar_connected: false,
-        apple_calendar_connected: false,
+        // google_calendar_connected: false, // 削除
+        // apple_calendar_connected: false, // 削除
         theme: "light",
         notifications_enabled: true,
         reminder_time: "09:00:00",
@@ -185,26 +185,26 @@ export class UserSettingsService {
   }
 
   /**
-   * カレンダー連携設定を更新
+   * カレンダー連携設定を更新 (削除)
    */
-  static async updateCalendarIntegration(
-    supabase: SupabaseClient,
-    googleConnected?: boolean,
-    appleConnected?: boolean,
-  ): Promise<UserSettings> {
-    const updateData: Partial<UserSettingsUpdate> = {}
+  // static async updateCalendarIntegration(
+  //   supabase: SupabaseClient,
+  //   googleConnected?: boolean,
+  //   appleConnected?: boolean,
+  // ): Promise<UserSettings> {
+  //   const updateData: Partial<UserSettingsUpdate> = {}
 
-    if (googleConnected !== undefined) {
-      updateData.google_calendar_connected = googleConnected
-    }
+  //   if (googleConnected !== undefined) {
+  //     updateData.google_calendar_connected = googleConnected
+  //   }
 
-    if (appleConnected !== undefined) {
-      updateData.apple_calendar_connected = appleConnected
-    }
+  //   if (appleConnected !== undefined) {
+  //     updateData.apple_calendar_connected = appleConnected
+  //   }
 
-    const service = new UserSettingsService(supabase)
-    return service.update(updateData)
-  }
+  //   const service = new UserSettingsService(supabase)
+  //   return service.update(updateData)
+  // }
 
   /**
    * 設定をリセット
@@ -230,8 +230,8 @@ export class UserSettingsService {
       const defaultSettings: Partial<UserSettingsUpdate> = {
         font_size: 16,
         week_starts_monday: false,
-        google_calendar_connected: false,
-        apple_calendar_connected: false,
+        // google_calendar_connected: false, // 削除
+        // apple_calendar_connected: false, // 削除
         theme: "light",
         notifications_enabled: true,
         reminder_time: "09:00:00",
@@ -266,10 +266,6 @@ export class UserSettingsService {
       throw new Error("user_idが必要です。")
     }
 
-    // supabaseインスタンスを取得
-    // 必要に応じて引数でsupabaseを受け取る設計にしてもOK
-    // ここではグローバルのsupabaseを使う例
-    // import { supabase } from "@/lib/supabase"
     const { data: settings, error } = await supabase
       .from("user_settings")
       .upsert(data, { onConflict: "user_id" })

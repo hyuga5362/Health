@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, User, Palette, Bell, Calendar, Smartphone } from "lucide-react"
+import { ArrowLeft, User, Palette, Bell, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
@@ -14,17 +14,7 @@ import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
 
 export default function SettingsPage() {
-  const {
-    settings,
-    loading,
-    updateFontSize,
-    toggleWeekStartsMonday,
-    toggleNotifications,
-    connectGoogleCalendar,
-    disconnectGoogleCalendar,
-    connectAppleCalendar,
-    disconnectAppleCalendar,
-  } = useUserSettings()
+  const { settings, loading, updateFontSize, toggleWeekStartsMonday, toggleNotifications } = useUserSettings()
   const { user, loading: authLoading, isAuthenticated } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -78,54 +68,6 @@ export default function SettingsPage() {
       toast({
         title: "エラーが発生しました",
         description: "設定の更新に失敗しました。",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleGoogleCalendarToggle = async () => {
-    try {
-      if (settings?.google_calendar_connected) {
-        await disconnectGoogleCalendar()
-        toast({
-          title: "Google Calendar連携を解除しました",
-          description: "Google Calendarとの連携を解除しました。",
-        })
-      } else {
-        await connectGoogleCalendar()
-        toast({
-          title: "Google Calendar連携を有効にしました",
-          description: "Google Calendarとの連携を開始しました。",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "エラーが発生しました",
-        description: "連携設定の更新に失敗しました。",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleAppleCalendarToggle = async () => {
-    try {
-      if (settings?.apple_calendar_connected) {
-        await disconnectAppleCalendar()
-        toast({
-          title: "Apple Calendar連携を解除しました",
-          description: "Apple Calendarとの連携を解除しました。",
-        })
-      } else {
-        await connectAppleCalendar()
-        toast({
-          title: "Apple Calendar連携を有効にしました",
-          description: "Apple Calendarとの連携を開始しました。",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "エラーが発生しました",
-        description: "連携設定の更新に失敗しました。",
         variant: "destructive",
       })
     }
@@ -263,59 +205,6 @@ export default function SettingsPage() {
                 <p className="text-xs text-gray-500">※ 時間の変更機能は今後実装予定です</p>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* カレンダー連携 */}
-        <Card className="bg-white">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-medium text-gray-800 flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              カレンダー連携
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Google Calendar */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">G</span>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium text-gray-700">Google Calendar</Label>
-                  <p className="text-xs text-gray-500">{settings.google_calendar_connected ? "連携中" : "未連携"}</p>
-                </div>
-              </div>
-              <Button
-                variant={settings.google_calendar_connected ? "destructive" : "default"}
-                size="sm"
-                onClick={handleGoogleCalendarToggle}
-                className={settings.google_calendar_connected ? "" : "bg-orange-600 hover:bg-orange-700"}
-              >
-                {settings.google_calendar_connected ? "解除" : "連携"}
-              </Button>
-            </div>
-
-            {/* Apple Calendar */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center">
-                  <Smartphone className="h-4 w-4 text-white" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium text-gray-700">Apple Calendar</Label>
-                  <p className="text-xs text-gray-500">{settings.apple_calendar_connected ? "連携中" : "未連携"}</p>
-                </div>
-              </div>
-              <Button
-                variant={settings.apple_calendar_connected ? "destructive" : "default"}
-                size="sm"
-                onClick={handleAppleCalendarToggle}
-                className={settings.apple_calendar_connected ? "" : "bg-orange-600 hover:bg-orange-700"}
-              >
-                {settings.apple_calendar_connected ? "解除" : "連携"}
-              </Button>
-            </div>
           </CardContent>
         </Card>
 

@@ -39,8 +39,8 @@ export interface UserSettings {
   user_id: string
   font_size: number
   week_starts_monday: boolean
-  google_calendar_connected: boolean
-  apple_calendar_connected: boolean
+  // google_calendar_connected: boolean // 削除
+  // apple_calendar_connected: boolean // 削除
   theme: Theme
   notifications_enabled: boolean
   reminder_time: string
@@ -53,8 +53,8 @@ export interface UserSettingsInsert {
   user_id: string
   font_size?: number
   week_starts_monday?: boolean
-  google_calendar_connected?: boolean
-  apple_calendar_connected?: boolean
+  // google_calendar_connected?: boolean // 削除
+  // apple_calendar_connected?: boolean // 削除
   theme?: Theme
   notifications_enabled?: boolean
   reminder_time?: string
