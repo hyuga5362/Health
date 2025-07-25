@@ -14,6 +14,7 @@ import { HealthStats } from "@/components/health-stats"
 import { SampleDataGenerator } from "@/components/sample-data-generator"
 import { useHealthRecords } from "@/hooks/use-health-records"
 import { useAuth } from "@/hooks/use-auth"
+import { useUserSettings } from "@/hooks/use-user-settings"
 import type { HealthStatus } from "@/types/database" // Corrected import for HealthStatus
 import Link from "next/link"
 
@@ -22,6 +23,7 @@ const Page = () => {
   const [isRecording, setIsRecording] = useState(false)
   const { records, loading, addRecord, getRecordByDate, generateSampleData } = useHealthRecords()
   const { user, loading: authLoading, isAuthenticated, signOut } = useAuth()
+  const { settings } = useUserSettings()
   const router = useRouter()
   const { toast } = useToast()
 
@@ -114,7 +116,7 @@ const Page = () => {
   return (
     <div
       className="min-h-screen bg-amber-50"
-      style={{ fontSize: '16px' }}
+      style={settings?.font_size ? { fontSize: settings.font_size + 'px' } : undefined}
     >
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-orange-100">
