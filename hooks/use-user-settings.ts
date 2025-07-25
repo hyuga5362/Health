@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase" // supabaseインスタンスをイン
 import { useAuth } from "./use-auth"
 import type { UserSettings } from "@/types/database"
 import { ApplicationError } from "@/lib/errors"
+import { toast } from "@/components/ui/use-toast" // toastをインポート
 
 export function useUserSettings() {
   const { user, isAuthenticated, loading: authLoading } = useAuth()
@@ -80,7 +81,45 @@ export function useUserSettings() {
     return updateSettings({ notifications_enabled: !settings.notifications_enabled })
   }, [settings, updateSettings])
 
-  // カレンダー連携関連の関数は削除
+  // テスト通知を送信
+  const sendTestNotification = useCallback(async () => {
+    if (!user?.id || !user?.email) {
+      toast({
+        title: "エラー",
+        description: "テスト通知を送信するにはユーザー情報が必要です。",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const response = await fetch("/api/send-test-notification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: "テスト通知を送信しました",
+          description: data.message,
+        })
+      } else {
+        throw new Error(data.message || "Failed to send test notification.")
+      }
+    } catch (error: any) {
+      console.error("Failed to send test notification:", error)
+      toast({
+        title: "エラーが発生しました",
+        description: `テスト通知の送信に失敗しました: ${error.message}`,
+        variant: "destructive",
+      })
+    }
+  }, [user?.id, user?.email])
 
   return {
     settings,
@@ -91,6 +130,6 @@ export function useUserSettings() {
     updateFontSize,
     toggleWeekStartsMonday,
     toggleNotifications,
-    // カレンダー連携関連の関数は返さない
+    sendTestNotification, // 新しく追加
   }
 }

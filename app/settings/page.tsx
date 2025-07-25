@@ -14,7 +14,8 @@ import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
 
 export default function SettingsPage() {
-  const { settings, loading, updateFontSize, toggleWeekStartsMonday, toggleNotifications } = useUserSettings()
+  const { settings, loading, updateFontSize, toggleWeekStartsMonday, toggleNotifications, sendTestNotification } =
+    useUserSettings()
   const { user, loading: authLoading, isAuthenticated } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -71,6 +72,10 @@ export default function SettingsPage() {
         variant: "destructive",
       })
     }
+  }
+
+  const handleSendTestNotification = async () => {
+    await sendTestNotification()
   }
 
   if (authLoading || loading) {
@@ -205,6 +210,9 @@ export default function SettingsPage() {
                 <p className="text-xs text-gray-500">※ 時間の変更機能は今後実装予定です</p>
               </div>
             )}
+            <Button onClick={handleSendTestNotification} className="w-full bg-orange-600 hover:bg-orange-700">
+              テスト通知を送信
+            </Button>
           </CardContent>
         </Card>
 
