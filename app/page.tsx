@@ -112,7 +112,10 @@ const Page = () => {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50">
+    <div
+      className="min-h-screen bg-amber-50"
+      style={{ fontSize: '16px' }}
+    >
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-orange-100">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
