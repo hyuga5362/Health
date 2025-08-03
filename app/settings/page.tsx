@@ -33,7 +33,7 @@ export default function SettingsPage() {
         title: "設定を更新しました",
         description: `フォントサイズを${value[0]}pxに変更しました。`,
       })
-    } catch {
+    } catch (error) {
       toast({
         title: "エラーが発生しました",
         description: "設定の更新に失敗しました。",
@@ -49,7 +49,7 @@ export default function SettingsPage() {
         title: "設定を更新しました",
         description: `週の開始を${settings?.week_starts_monday ? "日曜日" : "月曜日"}に変更しました。`,
       })
-    } catch {
+    } catch (error) {
       toast({
         title: "エラーが発生しました",
         description: "設定の更新に失敗しました。",
@@ -65,7 +65,7 @@ export default function SettingsPage() {
         title: "設定を更新しました",
         description: `通知を${settings?.notifications_enabled ? "無効" : "有効"}にしました。`,
       })
-    } catch {
+    } catch (error) {
       toast({
         title: "エラーが発生しました",
         description: "設定の更新に失敗しました。",

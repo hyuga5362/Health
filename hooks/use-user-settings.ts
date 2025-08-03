@@ -1,135 +1,135 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useAuth } from "./use-auth"
+import { useState, useEffect, useCallback } from "react"
 import { UserSettingsService } from "@/services/user-settings.service"
-import { useToast } from "./use-toast"
+import { supabase } from "@/lib/supabase" // supabaseインスタンスをインポート
+import { useAuth } from "./use-auth"
 import type { UserSettings } from "@/types/database"
+import { ApplicationError } from "@/lib/errors"
+import { toast } from "@/components/ui/use-toast" // toastをインポート
 
 export function useUserSettings() {
+  const { user, isAuthenticated, loading: authLoading } = useAuth()
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [loading, setLoading] = useState(true)
-  const { user, isAuthenticated } = useAuth()
-  const { toast } = useToast()
+  const [error, setError] = useState<ApplicationError | null>(null)
 
-  const userSettingsService = new UserSettingsService()
-
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadSettings()
-    } else {
+  const fetchSettings = useCallback(async () => {
+    if (!isAuthenticated || !user?.id) {
       setLoading(false)
+      return
     }
-  }, [isAuthenticated, user])
-
-  const loadSettings = async () => {
-    if (!user) return
-
+    setLoading(true)
+    setError(null)
     try {
-      setLoading(true)
-      const userSettings = await userSettingsService.getByUserId(user.id)
-      setSettings(userSettings)
-    } catch (error) {
-      console.error("Error loading user settings:", error)
-      // Create default settings if none exist
-      try {
-        const defaultSettings = await userSettingsService.create({
-          user_id: user.id,
-          font_size: 16,
-          week_starts_monday: false,
-          notifications_enabled: true,
-          reminder_time: "20:00",
-        })
-        setSettings(defaultSettings)
-      } catch (createError) {
-        console.error("Error creating default settings:", createError)
-      }
+      const fetchedSettings = await UserSettingsService.get(supabase)
+      setSettings(fetchedSettings)
+    } catch (err: any) {
+      console.error("Failed to fetch user settings:", err)
+      setError(err instanceof ApplicationError ? err : new ApplicationError("設定の読み込みに失敗しました。"))
     } finally {
       setLoading(false)
     }
-  }
+  }, [isAuthenticated, user?.id]) // supabaseを依存配列に追加
 
-  const updateFontSize = async (fontSize: number) => {
-    if (!settings) return
-
-    try {
-      const updatedSettings = await userSettingsService.update(settings.id, {
-        font_size: fontSize,
-      })
-      setSettings(updatedSettings)
-    } catch (error) {
-      console.error("Error updating font size:", error)
-      throw error
+  useEffect(() => {
+    if (!authLoading) {
+      fetchSettings()
     }
-  }
+  }, [authLoading, fetchSettings])
 
-  const toggleWeekStartsMonday = async () => {
-    if (!settings) return
+  const updateSettings = useCallback(
+    async (newSettings: Partial<UserSettings>) => {
+      if (!isAuthenticated || !user?.id) {
+        setError(new ApplicationError("認証されていません。"))
+        return null
+      }
+      setLoading(true)
+      setError(null)
+      try {
+        const updatedSettings = await UserSettingsService.upsert({ ...newSettings, user_id: user.id })
+        setSettings(updatedSettings)
+        return updatedSettings
+      } catch (err: any) {
+        console.error("Failed to update user settings:", err)
+        setError(err instanceof ApplicationError ? err : new ApplicationError("設定の更新に失敗しました。"))
+        return null
+      } finally {
+        setLoading(false)
+      }
+    },
+    [isAuthenticated, user?.id],
+  )
 
-    try {
-      const updatedSettings = await userSettingsService.update(settings.id, {
-        week_starts_monday: !settings.week_starts_monday,
+  // フォントサイズを更新
+  const updateFontSize = useCallback(
+    async (fontSize: number) => {
+      return updateSettings({ font_size: fontSize })
+    },
+    [updateSettings],
+  )
+
+  // 週の開始日を更新
+  const toggleWeekStartsMonday = useCallback(async () => {
+    if (!settings) return null
+    return updateSettings({ week_starts_monday: !settings.week_starts_monday })
+  }, [settings, updateSettings])
+
+  // 通知設定を更新
+  const toggleNotifications = useCallback(async () => {
+    if (!settings) return null
+    return updateSettings({ notifications_enabled: !settings.notifications_enabled })
+  }, [settings, updateSettings])
+
+  // テスト通知を送信
+  const sendTestNotification = useCallback(async () => {
+    if (!user?.id || !user?.email) {
+      toast({
+        title: "エラー",
+        description: "テスト通知を送信するにはユーザー情報が必要です。",
+        variant: "destructive",
       })
-      setSettings(updatedSettings)
-    } catch (error) {
-      console.error("Error toggling week start:", error)
-      throw error
+      return
     }
-  }
 
-  const toggleNotifications = async () => {
-    if (!settings) return
-
-    try {
-      const updatedSettings = await userSettingsService.update(settings.id, {
-        notifications_enabled: !settings.notifications_enabled,
-      })
-      setSettings(updatedSettings)
-    } catch (error) {
-      console.error("Error toggling notifications:", error)
-      throw error
-    }
-  }
-
-  const sendTestNotification = async () => {
     try {
       const response = await fetch("/api/send-test-notification", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({ userId: user.id, email: user.email }),
       })
 
       const data = await response.json()
 
-      if (data.success) {
+      if (response.ok) {
         toast({
           title: "テスト通知を送信しました",
-          description: "メールをご確認ください。",
+          description: data.message,
         })
       } else {
-        toast({
-          title: "エラーが発生しました",
-          description: data.message || "テスト通知の送信に失敗しました。",
-          variant: "destructive",
-        })
+        throw new Error(data.message || "Failed to send test notification.")
       }
-    } catch (error) {
-      console.error("Error sending test notification:", error)
+    } catch (error: any) {
+      console.error("Failed to send test notification:", error)
       toast({
         title: "エラーが発生しました",
-        description: "テスト通知の送信に失敗しました。",
+        description: `テスト通知の送信に失敗しました: ${error.message}`,
         variant: "destructive",
       })
     }
-  }
+  }, [user?.id, user?.email])
 
   return {
     settings,
     loading,
+    error,
+    updateSettings,
+    fetchSettings,
     updateFontSize,
     toggleWeekStartsMonday,
     toggleNotifications,
-    sendTestNotification,
+    sendTestNotification, // 新しく追加
   }
 }

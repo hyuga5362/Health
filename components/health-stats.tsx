@@ -1,4 +1,5 @@
 "use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, Calendar, BarChart3 } from "lucide-react"
 import type { HealthRecord } from "@/lib/supabase"

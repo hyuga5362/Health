@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Mail, Lock, Calendar } from "lucide-react"
@@ -66,11 +67,10 @@ export default function LoginPage() {
           description: "確認メールをお送りしました。メールを確認してアカウントを有効化してください。",
         })
       }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "エラーが発生しました。もう一度お試しください。"
+    } catch (error: any) {
       toast({
         title: isLogin ? "ログインエラー" : "アカウント作成エラー",
-        description: errorMessage,
+        description: error.message || "エラーが発生しました。もう一度お試しください。",
         variant: "destructive",
       })
     } finally {
@@ -82,11 +82,10 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await signInWithGoogle()
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Googleログインに失敗しました。"
+    } catch (error: any) {
       toast({
         title: "Googleログインエラー",
-        description: errorMessage,
+        description: error.message || "Googleログインに失敗しました。",
         variant: "destructive",
       })
       setLoading(false)

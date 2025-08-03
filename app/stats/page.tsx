@@ -81,7 +81,7 @@ export default function StatsPage() {
             <CardContent className="pt-6 text-center">
               <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 mb-2">まだ体調記録がありません</p>
-              <p className="text-sm text-gray-500">体調を記録して統計を確認しましょう</p>
+              <p className="text-sm text-gray-500">体調を記録して統計を確認��ましょう</p>
             </CardContent>
           </Card>
         ) : (

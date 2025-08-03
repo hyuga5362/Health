@@ -47,11 +47,10 @@ const Page = () => {
           status === "good" ? "良い" : status === "normal" ? "普通" : "悪い"
         }`,
       })
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "体調の記録に失敗しました。もう一度お試しください。"
+    } catch (error: any) {
       toast({
         title: "エラーが発生しました",
-        description: errorMessage,
+        description: error.message || "体調の記録に失敗しました。もう一度お試しください。",
         variant: "destructive",
       })
     } finally {
@@ -66,11 +65,10 @@ const Page = () => {
         title: "サンプルデータを生成しました",
         description: "過去30日分の体調データを作成しました。",
       })
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "サンプルデータの生成に失敗しました。"
+    } catch (error: any) {
       toast({
         title: "エラーが発生しました",
-        description: errorMessage,
+        description: error.message || "サンプルデータの生成に失敗しました。",
         variant: "destructive",
       })
     }
@@ -84,11 +82,10 @@ const Page = () => {
         description: "またのご利用をお待ちしております。",
       })
       router.push("/login")
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "ログアウトに失敗しました。"
+    } catch (error: any) {
       toast({
         title: "エラーが発生しました",
-        description: errorMessage,
+        description: error.message || "ログアウトに失敗しました。",
         variant: "destructive",
       })
     }
@@ -119,7 +116,7 @@ const Page = () => {
   return (
     <div
       className="min-h-screen bg-amber-50"
-      style={settings?.font_size ? { fontSize: settings.font_size + "px" } : undefined}
+      style={settings?.font_size ? { fontSize: settings.font_size + 'px' } : undefined}
     >
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-orange-100">
