@@ -2,6 +2,23 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
+  "description": "このリポジトリは健康を目的にしています。",
+  "keywords": [],
+  "homepage": "https://github.com/hyuga5362/Health#readme",
+  "bugs": {
+    "url": "https://github.com/hyuga5362/Health/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyuga5362/Health.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "main": "postcss.config.js",
+  "directories": {
+    "lib": "lib",
+    "doc": "docs"
+  },
   "scripts": {
     "build": "next build",
     "dev": "next dev",
@@ -44,6 +61,7 @@
     "date-fns": "latest",
     "embla-carousel-react": "latest",
     "input-otp": "latest",
+    "jiti": "latest",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
     "next-themes": "latest",
@@ -72,22 +90,5 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5",
     "typescript-eslint": "^8.38.0"
-  },
-  "description": "このリポジトリは健康を目的にしています。",
-  "main": "postcss.config.js",
-  "directories": {
-    "doc": "docs",
-    "lib": "lib"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hyuga5362/Health.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/hyuga5362/Health/issues"
-  },
-  "homepage": "https://github.com/hyuga5362/Health#readme"
+  }
 }

@@ -12,7 +12,7 @@ export class AuthError extends Error {
 export class ApplicationError extends Error {
   constructor(message: string) {
     super(message)
-    this.name = 'ApplicationError'
+    this.name = "ApplicationError"
   }
 }
 
@@ -59,47 +59,49 @@ export function validateTheme(theme: string): boolean {
 }
 
 // Supabaseエラーハンドリング
-export function handleSupabaseError(error: any): never {
+export function handleSupabaseError(error: unknown): never {
   console.error("Supabase error:", error)
 
-  if (error?.code === "auth_session_missing") {
-    throw new AuthError("認証セッションが見つかりません。再度ログインしてください。", error.code)
+  const errorObj = error as Record<string, unknown>
+
+  if (errorObj?.code === "auth_session_missing") {
+    throw new AuthError("認証セッションが見つかりません。再度ログインしてください。", errorObj.code as string)
   }
 
-  if (error?.code === "invalid_credentials") {
-    throw new AuthError("メールアドレスまたはパスワードが正しくありません。", error.code)
+  if (errorObj?.code === "invalid_credentials") {
+    throw new AuthError("メールアドレスまたはパスワードが正しくありません。", errorObj.code as string)
   }
 
-  if (error?.code === "email_not_confirmed") {
-    throw new AuthError("メールアドレスの確認が完了していません。", error.code)
+  if (errorObj?.code === "email_not_confirmed") {
+    throw new AuthError("メールアドレスの確認が完了していません。", errorObj.code as string)
   }
 
-  if (error?.code === "signup_disabled") {
-    throw new AuthError("新規登録は現在無効になっています。", error.code)
+  if (errorObj?.code === "signup_disabled") {
+    throw new AuthError("新規登録は現在無効になっています。", errorObj.code as string)
   }
 
-  if (error?.code === "email_address_invalid") {
-    throw new AuthError("有効なメールアドレスを入力してください。", error.code)
+  if (errorObj?.code === "email_address_invalid") {
+    throw new AuthError("有効なメールアドレスを入力してください。", errorObj.code as string)
   }
 
-  if (error?.code === "password_too_short") {
-    throw new AuthError("パスワードは6文字以上で入力してください。", error.code)
+  if (errorObj?.code === "password_too_short") {
+    throw new AuthError("パスワードは6文字以上で入力してください。", errorObj.code as string)
   }
 
-  if (error?.code === "PGRST116") {
+  if (errorObj?.code === "PGRST116") {
     throw new DatabaseError("データが見つかりませんでした。")
   }
 
-  if (error?.code === "23505") {
+  if (errorObj?.code === "23505") {
     throw new DatabaseError("データが既に存在します。")
   }
 
-  if (error?.code === "42501") {
+  if (errorObj?.code === "42501") {
     throw new DatabaseError("データベースへのアクセス権限がありません。")
   }
 
-  if (error?.message) {
-    throw new DatabaseError(`データベースエラー: ${error.message}`)
+  if (errorObj?.message) {
+    throw new DatabaseError(`データベースエラー: ${errorObj.message}`)
   }
 
   throw new DatabaseError("予期しないエラーが発生しました。")
