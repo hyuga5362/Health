@@ -2,13 +2,18 @@
 **calendar-app - 健康管理を簡単に。
 
 ## 概要
-calendar-appは少し手間のかかる健康管理を簡単に可視化でき、めんどくさがりな方でも簡単に習慣化できるWEBアプリです。
+calendar-appは少し手間のかかる健康管理を簡単に可視化でき、めんどくさがりな方でも簡単に習慣化できるスマホ対応WEBアプリです。
 開発途中にはなりますが簡単な動作確認が可能になっています、ぜひお試しください。
+設定画面は開発中です。
 
 ## テストアカウント
+
+ご自由にログインして動作をお試しください。
+
+```
 メールアドレス: myori311@risu.be
 パスワード: Test0000
-
+```
 ## URL
 
 [https://v0-health-calendar-app-xl.vercel.app/](https://v0-health-calendar-app-xl.vercel.app/)
