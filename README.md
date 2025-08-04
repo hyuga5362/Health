@@ -13,26 +13,24 @@ calendar-appは少し手間のかかる健康管理を簡単に可視化でき�
 
 [https://v0-health-calendar-app-xl.vercel.app/](https://v0-health-calendar-app-xl.vercel.app/)
 
-## iphone画面
-
-![ログイン画面](docs/app画像1.png) 
-![統計概要](docs/app画像4.png)
-![カレンダー画面](docs/app画像2.png)
-![体調の選択、最近の記録](docs/app画像3.png) 
-![全体統計のグラフ](docs/app画像5.png)
+## iPhone画面
 
 <table>
   <tr>
     <td><img src="docs/app画像1.png" alt="ログイン画面" width="300" /></td>
-    <td><img src="docs/app画像2.png" alt="カレンダー画面" width="300" /></td>
-  </tr>
-  <tr>
-    <td><img src="docs/app画像3.png" alt="体調の選択" width="300" /></td>
     <td><img src="docs/app画像4.png" alt="統計概要" width="300" /></td>
   </tr>
   <tr>
+    <td><img src="docs/app画像2.png" alt="カレンダー画面" width="300" /></td>
+    <td><img src="docs/app画像3.png" alt="体調の選択、最近の記録" width="300" /></td>
+  </tr>
+  <tr>
     <td colspan="2" align="center">
-      <img src="docs/app画像5.png" alt="
+      <img src="docs/app画像5.png" alt="全体統計のグラフ" width="300" />
+    </td>
+  </tr>
+</table>
+
 
 ## 使用技術
 - Node.js
@@ -77,7 +75,4 @@ calendar-appは少し手間のかかる健康管理を簡単に可視化でき�
 - 記録された体調がカレンダーに色分け表示
 - 統計で週間・月間の傾向を確認
 
-全体統計グラフ" width="300" />
-    </td>
-  </tr>
-</table>
+
