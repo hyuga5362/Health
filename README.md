@@ -6,20 +6,24 @@ calendar-appは少し手間のかかる健康管理を簡単に可視化でき�
 開発途中にはなりますが簡単な動作確認が可能になっています、ぜひお試しください。
 
 ## テストアカウント
-
+メールアドレス: myori311@risu.be
+パスワード: Test0000
 
 ## URL
 
 [https://v0-health-calendar-app-xl.vercel.app/](https://v0-health-calendar-app-xl.vercel.app/)
 
-## 画面
+## iphone画面
 
-![ログイン画面iphone]
+![ログイン画面](docs/app画像1.png) ![統計概要](docs/app画像4.png)
+![カレンダー画面](docs/app画像2.png)![体調の選択、最近の記録](docs/app画像3.png) 
+![全体統計のグラフ](docs/app画像5.png)
 
 ## 使用技術
 - Node.js
 - GitHub
 - Supabase
+- VS code
 
 ## 画像
 ![説明画像](docs/画像ファイル1.png)
