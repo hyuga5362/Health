@@ -21,6 +21,19 @@ calendar-appは少し手間のかかる健康管理を簡単に可視化でき�
 ![体調の選択、最近の記録](docs/app画像3.png) 
 ![全体統計のグラフ](docs/app画像5.png)
 
+<table>
+  <tr>
+    <td><img src="docs/app画像1.png" alt="ログイン画面" width="300" /></td>
+    <td><img src="docs/app画像2.png" alt="カレンダー画面" width="300" /></td>
+  </tr>
+  <tr>
+    <td><img src="docs/app画像3.png" alt="体調の選択" width="300" /></td>
+    <td><img src="docs/app画像4.png" alt="統計概要" width="300" /></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <img src="docs/app画像5.png" alt="
+
 ## 使用技術
 - Node.js
 - GitHub
@@ -64,18 +77,7 @@ calendar-appは少し手間のかかる健康管理を簡単に可視化でき�
 - 記録された体調がカレンダーに色分け表示
 - 統計で週間・月間の傾向を確認
 
-<table>
-  <tr>
-    <td><img src="docs/app画像1.png" alt="ログイン画面" width="300" /></td>
-    <td><img src="docs/app画像2.png" alt="カレンダー画面" width="300" /></td>
-  </tr>
-  <tr>
-    <td><img src="docs/app画像3.png" alt="体調の選択" width="300" /></td>
-    <td><img src="docs/app画像4.png" alt="統計概要" width="300" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">
-      <img src="docs/app画像5.png" alt="全体統計グラフ" width="300" />
+全体統計グラフ" width="300" />
     </td>
   </tr>
 </table>
