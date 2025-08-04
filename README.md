@@ -15,8 +15,10 @@ calendar-appは少し手間のかかる健康管理を簡単に可視化でき�
 
 ## iphone画面
 
-![ログイン画面](docs/app画像1.png) ![統計概要](docs/app画像4.png)
-![カレンダー画面](docs/app画像2.png)![体調の選択、最近の記録](docs/app画像3.png) 
+![ログイン画面](docs/app画像1.png) 
+![統計概要](docs/app画像4.png)
+![カレンダー画面](docs/app画像2.png)
+![体調の選択、最近の記録](docs/app画像3.png) 
 ![全体統計のグラフ](docs/app画像5.png)
 
 ## 使用技術
